@@ -1,0 +1,36 @@
+diff --git a/src/plugins/platforms/cocoa/qcocoawindow.mm b/src/plugins/platforms/cocoa/qcocoawindow.mm
+index 85f7bbb5..3b9f6bd3 100644
+--- a/src/plugins/platforms/cocoa/qcocoawindow.mm
++++ b/src/plugins/platforms/cocoa/qcocoawindow.mm
+@@ -302,19 +302,24 @@ a normal (not maximized or full screen) top-level window.
+     // the current view (by setting additionalSafeAreaInsets). If the window
+     // uses NSWindowStyleMaskFullSizeContentView this also includes the area
+     // of the view covered by the title bar.
+-    QMarginsF viewSafeAreaMargins = {
+-        m_view.safeAreaInsets.left,
+-        m_view.safeAreaInsets.top,
+-        m_view.safeAreaInsets.right,
+-        m_view.safeAreaInsets.bottom
+-    };
++    QMarginsF viewSafeAreaMargins;
++    if (@available(macOS 11.0, *)) {
++        viewSafeAreaMargins = {
++            m_view.safeAreaInsets.left,
++            m_view.safeAreaInsets.top,
++            m_view.safeAreaInsets.right,
++            m_view.safeAreaInsets.bottom
++        };
++    }
+ 
+     // The screen's safe area insets represent the distances from the screen's
+     // edges at which content isn't obscured. The view's safe area margins do
+     // not include the screen's insets automatically, so we need to manually
+     // merge them.
+     auto screenRect = m_view.window.screen.frame;
+-    auto screenInsets = m_view.window.screen.safeAreaInsets;
++    NSEdgeInsets screenInsets = {};
++    if (@available(macOS 11.0, *))
++        screenInsets = m_view.window.screen.safeAreaInsets;
+     auto screenRelativeViewBounds = QCocoaScreen::mapFromNative(
+         [m_view.window convertRectToScreen:
+             [m_view convertRect:m_view.bounds toView:nil]]

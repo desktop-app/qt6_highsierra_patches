@@ -1,0 +1,19 @@
+diff --git a/src/gui/platform/darwin/qutimimeconverter.mm b/src/gui/platform/darwin/qutimimeconverter.mm
+index 294a617f..069318ae 100644
+--- a/src/gui/platform/darwin/qutimimeconverter.mm
++++ b/src/gui/platform/darwin/qutimimeconverter.mm
+@@ -784,8 +784,13 @@ QVariant convertToMime(const QString &mime, const QList<QByteArray> &data,
+         return QList<QByteArray>();
+ 
+     QCFType<CFMutableDataRef> data = CFDataCreateMutable(0, 0);
++    CFStringRef tiffType;
++    if (@available(macOS 11.0, *))
++        tiffType = (__bridge CFStringRef)UTTypeTIFF.identifier;
++    else
++        tiffType = (__bridge CFStringRef)@"public.tiff";
+     QCFType<CGImageDestinationRef> imageDestination = CGImageDestinationCreateWithData(data,
+-                                                        (CFStringRef)UTTypeTIFF.identifier, 1, 0);
++                                                        tiffType, 1, 0);
+ 
+     if (!imageDestination)
+         return QList<QByteArray>();

@@ -1,0 +1,67 @@
+diff --git a/src/corelib/global/qsysinfo.cpp b/src/corelib/global/qsysinfo.cpp
+index fc38d61d..b154d7b8 100644
+--- a/src/corelib/global/qsysinfo.cpp
++++ b/src/corelib/global/qsysinfo.cpp
+@@ -1015,7 +1015,11 @@ QByteArray QSysInfo::machineUniqueId()
+ {
+ #if defined(Q_OS_DARWIN) && __has_include(<IOKit/IOKitLib.h>)
+     char uuid[UuidStringLen + 1];
+-    io_service_t service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"));
++    // kIOMainPortDefault requires macOS 12.0+; use deprecated kIOMasterPortDefault for compat.
++QT_WARNING_PUSH
++QT_WARNING_DISABLE_DEPRECATED
++    io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOPlatformExpertDevice"));
++QT_WARNING_POP
+     QCFString stringRef = (CFStringRef)IORegistryEntryCreateCFProperty(service, CFSTR(kIOPlatformUUIDKey), kCFAllocatorDefault, 0);
+     CFStringGetCString(stringRef, uuid, sizeof(uuid), kCFStringEncodingMacRoman);
+     return QByteArray(uuid);
+diff --git a/src/corelib/kernel/qcore_mac.mm b/src/corelib/kernel/qcore_mac.mm
+index 5af84019..3a34e128 100644
+--- a/src/corelib/kernel/qcore_mac.mm
++++ b/src/corelib/kernel/qcore_mac.mm
+@@ -323,9 +323,12 @@ @implementation QT_MANGLE_NAMESPACE(QMacAutoReleasePoolTracker)
+ #ifdef Q_OS_MACOS
+ bool qt_mac_applicationIsInDarkMode()
+ {
+-    auto appearance = [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:
+-            @[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
+-    return [appearance isEqualToString:NSAppearanceNameDarkAqua];
++    if (@available(macOS 10.14, *)) {
++        auto appearance = [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:
++                @[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
++        return [appearance isEqualToString:NSAppearanceNameDarkAqua];
++    }
++    return false;
+ }
+ 
+ bool qt_mac_runningUnderRosetta()
+@@ -346,7 +349,12 @@ bool qt_mac_runningUnderRosetta()
+             return config;
+ #endif
+ 
+-        QIOType<io_registry_entry_t> nvram = IORegistryEntryFromPath(kIOMainPortDefault, "IODeviceTree:/options");
++        mach_port_t mainPort = 0;
++        if (@available(macOS 12.0, *))
++            mainPort = kIOMainPortDefault;
++        else
++            mainPort = kIOMasterPortDefault;
++        QIOType<io_registry_entry_t> nvram = IORegistryEntryFromPath(mainPort, "IODeviceTree:/options");
+         if (!nvram) {
+             qWarning("Failed to locate NVRAM entry in IO registry");
+             return {};
+@@ -383,6 +391,7 @@ bool qt_mac_runningUnderRosetta()
+ void qt_mac_ensureResponsible()
+ {
+ #if !defined(QT_APPLE_NO_PRIVATE_APIS)
++    if (@available(macOS 10.14, *)) {
+     if (!responsibility_get_pid_responsible_for_pid || !responsibility_spawnattrs_setdisclaim)
+         return;
+ 
+@@ -415,6 +424,7 @@ void qt_mac_ensureResponsible()
+     char **argv = *_NSGetArgv();
+     posix_spawnp(&pid, argv[0], nullptr, &attr, argv, environ);
+     posix_spawnattr_destroy(&attr);
++    }
+ #endif
+ }
+ #endif // QT_BUILD_INTERNAL
