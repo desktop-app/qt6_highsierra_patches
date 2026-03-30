@@ -1,5 +1,5 @@
 diff --git a/src/plugins/platforms/cocoa/qcocoascreen.mm b/src/plugins/platforms/cocoa/qcocoascreen.mm
-index bdecf6fa..7eec21ad 100644
+index 0eb53637..9d180ec3 100644
 --- a/src/plugins/platforms/cocoa/qcocoascreen.mm
 +++ b/src/plugins/platforms/cocoa/qcocoascreen.mm
 @@ -242,7 +242,7 @@

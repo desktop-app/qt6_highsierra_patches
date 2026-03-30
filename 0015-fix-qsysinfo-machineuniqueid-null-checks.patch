@@ -1,18 +1,17 @@
 diff --git a/src/corelib/global/qsysinfo.cpp b/src/corelib/global/qsysinfo.cpp
-index d4079e0d8..0000000 100644
+index 32bd91c46..0000000 100644
 --- a/src/corelib/global/qsysinfo.cpp
 +++ b/src/corelib/global/qsysinfo.cpp
-@@ -1012,13 +1012,18 @@
+@@ -1012,12 +1012,17 @@
  QByteArray QSysInfo::machineUniqueId()
  {
  #if defined(Q_OS_DARWIN) && __has_include(<IOKit/IOKitLib.h>)
 -    char uuid[UuidStringLen + 1];
 +    char uuid[UuidStringLen + 1] = {};
-     // kIOMainPortDefault requires macOS 12.0+; use deprecated kIOMasterPortDefault for compat.
- QT_WARNING_PUSH
- QT_WARNING_DISABLE_DEPRECATED
+     QT_WARNING_PUSH
+     QT_WARNING_DISABLE_DEPRECATED
      io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOPlatformExpertDevice"));
- QT_WARNING_POP
+     QT_WARNING_POP
 +    if (!service)
 +        return QByteArray();
      QCFString stringRef = (CFStringRef)IORegistryEntryCreateCFProperty(service, CFSTR(kIOPlatformUUIDKey), kCFAllocatorDefault, 0);

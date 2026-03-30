@@ -1,8 +1,8 @@
 diff --git a/src/plugins/platforms/cocoa/qcocoawindow.mm b/src/plugins/platforms/cocoa/qcocoawindow.mm
-index 85f7bbb5..3b9f6bd3 100644
+index 6b33d94d..12c87644 100644
 --- a/src/plugins/platforms/cocoa/qcocoawindow.mm
 +++ b/src/plugins/platforms/cocoa/qcocoawindow.mm
-@@ -302,19 +302,24 @@ a normal (not maximized or full screen) top-level window.
+@@ -316,19 +316,23 @@ a normal (not maximized or full screen) top-level window.
      // the current view (by setting additionalSafeAreaInsets). If the window
      // uses NSWindowStyleMaskFullSizeContentView this also includes the area
      // of the view covered by the title bar.
@@ -29,8 +29,7 @@ index 85f7bbb5..3b9f6bd3 100644
      auto screenRect = m_view.window.screen.frame;
 -    auto screenInsets = m_view.window.screen.safeAreaInsets;
 +    NSEdgeInsets screenInsets = {};
-+    if (@available(macOS 11.0, *))
-+        screenInsets = m_view.window.screen.safeAreaInsets;
++    if (@available(macOS 11.0, *)) screenInsets = m_view.window.screen.safeAreaInsets;
      auto screenRelativeViewBounds = QCocoaScreen::mapFromNative(
          [m_view.window convertRectToScreen:
              [m_view convertRect:m_view.bounds toView:nil]]
