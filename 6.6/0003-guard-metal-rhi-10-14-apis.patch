@@ -1,0 +1,59 @@
+diff --git a/src/gui/rhi/qrhimetal.mm b/src/gui/rhi/qrhimetal.mm
+index 8e319e98..6e282262 100644
+--- a/src/gui/rhi/qrhimetal.mm
++++ b/src/gui/rhi/qrhimetal.mm
+@@ -2325,7 +2325,7 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
+ 
+     __block int thisFrameSlot = currentFrameSlot;
+     [swapChainD->cbWrapper.d->cb addCompletedHandler: ^(id<MTLCommandBuffer> cb) {
+-        swapChainD->d->lastGpuTime[thisFrameSlot] += cb.GPUEndTime - cb.GPUStartTime;
++        swapChainD->d->lastGpuTime[thisFrameSlot] += ([&]() -> double { if (@available(macOS 10.15, *)) return cb.GPUEndTime - cb.GPUStartTime; return 0; }());
+         dispatch_semaphore_signal(swapChainD->d->sem[thisFrameSlot]);
+     }];
+ 
+@@ -2397,7 +2397,7 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
+     // offscreen frames wait for completion, unlike swapchain ones
+     [cb waitUntilCompleted];
+ 
+-    d->ofr.lastGpuTime += cb.GPUEndTime - cb.GPUStartTime;
++    d->ofr.lastGpuTime += ([&]() -> double { if (@available(macOS 10.15, *)) return cb.GPUEndTime - cb.GPUStartTime; return 0; }());
+ 
+     finishActiveReadbacks(true);
+ 
+@@ -2439,10 +2439,10 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
+ 
+     if (inFrame) {
+         if (d->ofr.active) {
+-            d->ofr.lastGpuTime += cb.GPUEndTime - cb.GPUStartTime;
++            d->ofr.lastGpuTime += ([&]() -> double { if (@available(macOS 10.15, *)) return cb.GPUEndTime - cb.GPUStartTime; return 0; }());
+             d->ofr.cbWrapper.d->cb = [d->cmdQueue commandBufferWithUnretainedReferences];
+         } else {
+-            swapChainD->d->lastGpuTime[currentFrameSlot] += cb.GPUEndTime - cb.GPUStartTime;
++            swapChainD->d->lastGpuTime[currentFrameSlot] += ([&]() -> double { if (@available(macOS 10.15, *)) return cb.GPUEndTime - cb.GPUStartTime; return 0; }());
+             swapChainD->cbWrapper.d->cb = [d->cmdQueue commandBufferWithUnretainedReferences];
+         }
+     }
+@@ -3748,12 +3748,12 @@ static inline MTLPixelFormat toMetalTextureFormat(QRhiTexture::Format format, QR
+     } else if (isArray) {
+ #ifdef Q_OS_IOS
+         if (@available(iOS 14, *)) {
+-            desc.textureType = samples > 1 ? MTLTextureType2DMultisampleArray : MTLTextureType2DArray;
++            if (samples > 1) { if (@available(macOS 10.14, *)) desc.textureType = MTLTextureType2DMultisampleArray; else desc.textureType = MTLTextureType2DArray; } else { desc.textureType = MTLTextureType2DArray; }
+         } else {
+             desc.textureType = MTLTextureType2DArray;
+         }
+ #else
+-        desc.textureType = samples > 1 ? MTLTextureType2DMultisampleArray : MTLTextureType2DArray;
++        if (samples > 1) { if (@available(macOS 10.14, *)) desc.textureType = MTLTextureType2DMultisampleArray; else desc.textureType = MTLTextureType2DArray; } else { desc.textureType = MTLTextureType2DArray; }
+ #endif
+     } else {
+         desc.textureType = samples > 1 ? MTLTextureType2DMultisample : MTLTextureType2D;
+@@ -6317,7 +6317,7 @@ static inline bool matches(const QShaderDescription::InOutVariable &a, const QSh
+         NSView *view = reinterpret_cast<NSView *>(m_window->winId());
+         NSScreen *screen = view.window.screen;
+         info.limits.colorComponentValue.maxColorComponentValue = screen.maximumExtendedDynamicRangeColorComponentValue;
+-        info.limits.colorComponentValue.maxPotentialColorComponentValue = screen.maximumPotentialExtendedDynamicRangeColorComponentValue;
++        info.limits.colorComponentValue.maxPotentialColorComponentValue = ([&]() -> CGFloat { if (@available(macOS 10.15, *)) return screen.maximumPotentialExtendedDynamicRangeColorComponentValue; return 1.0; }());
+         info.isHardCodedDefaults = false;
+ #else
+         if (@available(iOS 16.0, *)) {

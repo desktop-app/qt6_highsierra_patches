@@ -1,0 +1,46 @@
+diff --git a/src/plugins/platforms/cocoa/qcocoaservices.mm b/src/plugins/platforms/cocoa/qcocoaservices.mm
+index 4566cbb8..c0abb126 100644
+--- a/src/plugins/platforms/cocoa/qcocoaservices.mm
++++ b/src/plugins/platforms/cocoa/qcocoaservices.mm
+@@ -25,24 +25,34 @@
+ class QCocoaColorPicker : public QPlatformServiceColorPicker
+ {
+ public:
+-    QCocoaColorPicker() : m_colorSampler([NSColorSampler new]) {}
+-    ~QCocoaColorPicker() { [m_colorSampler release]; }
++    QCocoaColorPicker() {
++        if (@available(macOS 10.15, *))
++            m_colorSampler = [NSColorSampler new];
++    }
++    ~QCocoaColorPicker() {
++        if (@available(macOS 10.15, *))
++            [m_colorSampler release];
++    }
+ 
+     void pickColor() override
+     {
+-        [m_colorSampler showSamplerWithSelectionHandler:^(NSColor *selectedColor) {
+-            emit colorPicked(qt_mac_toQColor(selectedColor));
+-        }];
++        if (@available(macOS 10.15, *)) {
++            [m_colorSampler showSamplerWithSelectionHandler:^(NSColor *selectedColor) {
++                emit colorPicked(qt_mac_toQColor(selectedColor));
++            }];
++        }
+     }
+ private:
+-    NSColorSampler *m_colorSampler = nullptr;
++    NSColorSampler *m_colorSampler API_AVAILABLE(macos(10.15)) = nullptr;
+ };
+ 
+ 
+ QPlatformServiceColorPicker *QCocoaServices::colorPicker(QWindow *parent)
+ {
+     Q_UNUSED(parent);
+-    return new QCocoaColorPicker;
++    if (@available(macOS 10.15, *))
++        return new QCocoaColorPicker;
++    return nullptr;
+ }
+ 
+ bool QCocoaServices::hasCapability(Capability capability) const
