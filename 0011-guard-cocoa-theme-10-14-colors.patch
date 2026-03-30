@@ -1,8 +1,8 @@
 diff --git a/src/plugins/platforms/cocoa/qcocoatheme.mm b/src/plugins/platforms/cocoa/qcocoatheme.mm
-index 3b8087b5..47c3aa24 100644
+index 6d15e8e5..0d0acacd 100644
 --- a/src/plugins/platforms/cocoa/qcocoatheme.mm
 +++ b/src/plugins/platforms/cocoa/qcocoatheme.mm
-@@ -65,7 +65,9 @@
+@@ -64,7 +64,9 @@
      // System palette initialization:
      QBrush br = qt_mac_toQBrush([NSColor selectedControlColor]);
      palette->setBrush(QPalette::Active, QPalette::Highlight, br);
@@ -13,7 +13,7 @@ index 3b8087b5..47c3aa24 100644
      palette->setBrush(QPalette::Inactive, QPalette::Highlight, inactiveHighlight);
      palette->setBrush(QPalette::Disabled, QPalette::Highlight, inactiveHighlight);
  
-@@ -95,7 +97,7 @@
+@@ -94,7 +96,7 @@
      palette->setColor(QPalette::Inactive, QPalette::PlaceholderText, qc);
      palette->setColor(QPalette::Disabled, QPalette::PlaceholderText, qc);
  
@@ -22,7 +22,7 @@ index 3b8087b5..47c3aa24 100644
      palette->setColor(QPalette::Accent, qc);
  
      return palette;
-@@ -156,7 +158,7 @@ inline QMacPaletteMap(QPlatformTheme::Palette p, NSColor *a, NSColor *i) :
+@@ -155,7 +157,7 @@ inline QMacPaletteMap(QPlatformTheme::Palette p, NSColor *a, NSColor *i) :
          if (mac_widget_colors[i].paletteRole == QPlatformTheme::MenuPalette
                  || mac_widget_colors[i].paletteRole == QPlatformTheme::MenuBarPalette) {
              // Cheap approximation for NSVisualEffectView (see deprecation note for selectedMenuItemTextColor)
@@ -31,7 +31,7 @@ index 3b8087b5..47c3aa24 100644
              pal.setBrush(QPalette::Highlight, qt_mac_toQColor(selectedMenuItemColor));
              qc = qt_mac_toQColor([NSColor labelColor]);
              pal.setBrush(QPalette::ButtonText, qc);
-@@ -177,10 +179,17 @@ inline QMacPaletteMap(QPlatformTheme::Palette p, NSColor *a, NSColor *i) :
+@@ -176,10 +178,17 @@ inline QMacPaletteMap(QPlatformTheme::Palette p, NSColor *a, NSColor *i) :
          } else if (mac_widget_colors[i].paletteRole == QPlatformTheme::ItemViewPalette) {
              NSArray<NSColor *> *baseColors = nil;
              NSColor *activeHighlightColor = nil;
@@ -53,3 +53,13 @@ index 3b8087b5..47c3aa24 100644
              pal.setBrush(QPalette::Base, qt_mac_toQBrush(baseColors[0]));
              pal.setBrush(QPalette::AlternateBase, qt_mac_toQBrush(baseColors[1]));
              pal.setBrush(QPalette::Active, QPalette::Highlight,
+@@ -482,7 +491,8 @@ QPixmap filePixmap(const QSize &size, QIcon::Mode, QIcon::State) override
+     NSAppearance *appearance = nil;
+     switch (scheme) {
+     case Qt::ColorScheme::Dark:
+-        appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
++        if (@available(macOS 10.14, *))
++            appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+         break;
+     case Qt::ColorScheme::Light:
+         appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];

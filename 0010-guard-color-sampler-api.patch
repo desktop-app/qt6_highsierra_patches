@@ -1,8 +1,8 @@
 diff --git a/src/plugins/platforms/cocoa/qcocoaservices.mm b/src/plugins/platforms/cocoa/qcocoaservices.mm
-index 4566cbb8..31c43c46 100644
+index 87212c26..696cf543 100644
 --- a/src/plugins/platforms/cocoa/qcocoaservices.mm
 +++ b/src/plugins/platforms/cocoa/qcocoaservices.mm
-@@ -25,24 +25,22 @@
+@@ -42,24 +42,26 @@
  class QCocoaColorPicker : public QPlatformServiceColorPicker
  {
  public:
@@ -16,7 +16,11 @@ index 4566cbb8..31c43c46 100644
 -        [m_colorSampler showSamplerWithSelectionHandler:^(NSColor *selectedColor) {
 -            emit colorPicked(qt_mac_toQColor(selectedColor));
 -        }];
-+        if (@available(macOS 10.15, *)) { [m_colorSampler showSamplerWithSelectionHandler:^(NSColor *selectedColor) { emit colorPicked(qt_mac_toQColor(selectedColor)); }]; }
++        if (@available(macOS 10.15, *)) {
++            [m_colorSampler showSamplerWithSelectionHandler:^(NSColor *selectedColor) {
++                emit colorPicked(qt_mac_toQColor(selectedColor));
++            }];
++        }
      }
  private:
 -    NSColorSampler *m_colorSampler = nullptr;
