@@ -1,0 +1,108 @@
+diff --git a/src/plugins/platforms/cocoa/qcocoafiledialoghelper.mm b/src/plugins/platforms/cocoa/qcocoafiledialoghelper.mm
+index 60f6e7ee..815a5b25 100644
+--- a/src/plugins/platforms/cocoa/qcocoafiledialoghelper.mm
++++ b/src/plugins/platforms/cocoa/qcocoafiledialoghelper.mm
+@@ -278,7 +278,10 @@ - (BOOL)panel:(id)sender validateURL:(NSURL *)url error:(NSError * _Nullable *)o
+ {
+     Q_ASSERT(sender == m_panel);
+
+-    if (![m_panel.allowedContentTypes count] && !m_selectedNameFilter.isEmpty()) {
++    bool hasAllowedTypes = false;
++    if (@available(macOS 11.0, *))
++        hasAllowedTypes = [m_panel.allowedContentTypes count] > 0;
++    if (!hasAllowedTypes && !m_selectedNameFilter.isEmpty()) {
+         // The save panel hasn't done filtering on our behalf,
+         // either because we couldn't represent the filter via
+         // allowedContentTypes, or we opted out due to a multi part
+@@ -311,7 +314,8 @@ - (BOOL)panel:(id)sender validateURL:(NSURL *)url error:(NSError * _Nullable *)o
+                         fileInfo.absoluteDir().dirName().toNSString()];
+
+             auto *replaceButton = [alert addButtonWithTitle:qt_mac_AppKitString(@"SavePanel", @"Replace")];
+-            replaceButton.hasDestructiveAction = YES;
++            if (@available(macOS 11.0, *))
++                replaceButton.hasDestructiveAction = YES;
+             replaceButton.tag = 1337;
+             [alert addButtonWithTitle:qt_mac_AppKitString(@"Common", @"Cancel")];
+
+@@ -451,24 +455,23 @@ - (void)updateProperties
+
+     m_popupButton.hidden = chooseDirsOnly;    // TODO hide the whole sunken pane instead?
+
+-    m_panel.allowedContentTypes = [self computeAllowedContentTypes];
+-
+-    // Setting allowedContentTypes to @[] is not enough to reset any
+-    // automatically added extension based on a previous filter.
+-    // This is problematic because extensions can in some cases
+-    // be hidden from the user, resulting in confusion when the
+-    // resulting file name doesn't match the current empty filter.
+-    // We work around this by temporarily resetting the allowed
+-    // content type to one without an extension, which forces
+-    // the save panel to update and remove the extension.
+-    const bool nameFieldHasExtension = m_panel.nameFieldStringValue.pathExtension.length > 0;
+-    if (![m_panel.allowedContentTypes count] && !nameFieldHasExtension && !openpanel_cast(m_panel)) {
+-        if (!UTTypeDirectory.preferredFilenameExtension) {
+-            m_panel.allowedContentTypes = @[ UTTypeDirectory ];
+-            m_panel.allowedContentTypes = @[];
+-        } else {
+-            qWarning() << "UTTypeDirectory unexpectedly reported an extension";
++    if (@available(macOS 11.0, *)) {
++        m_panel.allowedContentTypes = [self computeAllowedContentTypes];
++
++        const bool nameFieldHasExtension = m_panel.nameFieldStringValue.pathExtension.length > 0;
++        if (![m_panel.allowedContentTypes count] && !nameFieldHasExtension && !openpanel_cast(m_panel)) {
++            if (!UTTypeDirectory.preferredFilenameExtension) {
++                m_panel.allowedContentTypes = @[ UTTypeDirectory ];
++                m_panel.allowedContentTypes = @[];
++            } else {
++                qWarning() << "UTTypeDirectory unexpectedly reported an extension";
++            }
+         }
++    } else {
++QT_WARNING_PUSH
++QT_WARNING_DISABLE_DEPRECATED
++        m_panel.allowedFileTypes = [self computeAllowedFileTypes];
++QT_WARNING_POP
+     }
+
+     m_panel.showsHiddenFiles = m_options->filter().testFlag(QDir::Hidden);
+@@ -520,10 +523,10 @@ or contains an extensions with more than one part (e.g. "tar.gz")
+     we treat that as allowing all file types, and do our own
+     validation in panel:validateURL:error.
+ */
+-- (NSArray<UTType*>*)computeAllowedContentTypes
++- (NSArray<UTType*>*)computeAllowedContentTypes API_AVAILABLE(macos(11.0))
+ {
+     if (m_options->acceptMode() != QFileDialogOptions::AcceptSave)
+-        return @[]; // panel:shouldEnableURL: does the file filtering for NSOpenPanel
++        return @[];
+
+     auto *types = [[NSMutableArray<UTType*> new] autorelease];
+     for (const QString &filter : std::as_const(m_selectedNameFilter)) {
+@@ -547,6 +550,27 @@ or contains an extensions with more than one part (e.g. "tar.gz")
+     return types;
+ }
+
++- (NSArray<NSString*>*)computeAllowedFileTypes
++{
++    if (m_options->acceptMode() != QFileDialogOptions::AcceptSave)
++        return nil;
++
++    auto *types = [[NSMutableArray<NSString*> new] autorelease];
++    for (const QString &filter : std::as_const(m_selectedNameFilter)) {
++        if (!filter.startsWith("*."_L1))
++            continue;
++        if (filter.contains(u'?'))
++            continue;
++        if (filter.count(u'*') != 1)
++            continue;
++        auto extensions = filter.split('.', Qt::SkipEmptyParts);
++        if (extensions.count() > 2)
++            return nil;
++        [types addObject:extensions.last().toNSString()];
++    }
++    return types.count ? types : nil;
++}
++
+ - (QString)removeExtensions:(const QString &)filter
+ {
+     QRegularExpression regExp(QString::fromLatin1(QPlatformFileDialogHelper::filterRegExp));

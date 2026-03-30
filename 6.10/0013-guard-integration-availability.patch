@@ -1,0 +1,27 @@
+diff --git a/src/plugins/platforms/cocoa/qcocoaintegration.mm b/src/plugins/platforms/cocoa/qcocoaintegration.mm
+index 1ed73b56..68674452 100644
+--- a/src/plugins/platforms/cocoa/qcocoaintegration.mm
++++ b/src/plugins/platforms/cocoa/qcocoaintegration.mm
+@@ -453,13 +453,16 @@ QSurfaceFormat format() const override
+
+     static bool hasDefaultApplicationIcon = [](){
+-        NSImage *genericApplicationIcon = [NSWorkspace.sharedWorkspace
+-            iconForContentType:UTTypeApplicationBundle];
+-        NSImage *applicationIcon = [NSImage imageNamed:NSImageNameApplicationIcon];
+-
+-        NSRect rect = NSMakeRect(0, 0, 32, 32);
+-        return [applicationIcon CGImageForProposedRect:&rect context:nil hints:nil]
+-            == [genericApplicationIcon CGImageForProposedRect:&rect context:nil hints:nil];
++        if (@available(macOS 11.0, *)) {
++            NSImage *genericApplicationIcon = [NSWorkspace.sharedWorkspace
++                iconForContentType:UTTypeApplicationBundle];
++            NSImage *applicationIcon = [NSImage imageNamed:NSImageNameApplicationIcon];
++
++            NSRect rect = NSMakeRect(0, 0, 32, 32);
++            return [applicationIcon CGImageForProposedRect:&rect context:nil hints:nil]
++                == [genericApplicationIcon CGImageForProposedRect:&rect context:nil hints:nil];
++        }
++        return true;
+     }();
+
+     // Don't let the window icon override an explicit application icon set in the Info.plist

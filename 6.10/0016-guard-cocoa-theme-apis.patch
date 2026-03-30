@@ -1,0 +1,126 @@
+diff --git a/src/plugins/platforms/cocoa/qcocoatheme.mm b/src/plugins/platforms/cocoa/qcocoatheme.mm
+index 2aeaa60a..1f460e75 100644
+--- a/src/plugins/platforms/cocoa/qcocoatheme.mm
++++ b/src/plugins/platforms/cocoa/qcocoatheme.mm
+@@ -66,7 +66,9 @@
+     // System palette initialization:
+     QBrush br = qt_mac_toQBrush([NSColor selectedControlColor]);
+     palette->setBrush(QPalette::Active, QPalette::Highlight, br);
+-    const auto inactiveHighlight = qt_mac_toQBrush([NSColor unemphasizedSelectedContentBackgroundColor]);
++    QBrush inactiveHighlight;
++    if (@available(macOS 10.14, *)) inactiveHighlight = qt_mac_toQBrush([NSColor unemphasizedSelectedContentBackgroundColor]);
++    else inactiveHighlight = qt_mac_toQBrush([NSColor secondarySelectedControlColor]);
+     palette->setBrush(QPalette::Inactive, QPalette::Highlight, inactiveHighlight);
+     palette->setBrush(QPalette::Disabled, QPalette::Highlight, inactiveHighlight);
+ 
+@@ -96,7 +98,7 @@
+     palette->setColor(QPalette::Inactive, QPalette::PlaceholderText, qc);
+     palette->setColor(QPalette::Disabled, QPalette::PlaceholderText, qc);
+ 
+-    qc = qt_mac_toQColor([NSColor controlAccentColor]);
++    if (@available(macOS 10.14, *)) qc = qt_mac_toQColor([NSColor controlAccentColor]); else qc = qt_mac_toQColor([NSColor selectedControlColor]);
+     palette->setColor(QPalette::Accent, qc);
+ 
+     return palette;
+@@ -157,7 +159,7 @@ inline QMacPaletteMap(QPlatformTheme::Palette p, NSColor *a, NSColor *i) :
+         if (mac_widget_colors[i].paletteRole == QPlatformTheme::MenuPalette
+                 || mac_widget_colors[i].paletteRole == QPlatformTheme::MenuBarPalette) {
+             // Cheap approximation for NSVisualEffectView (see deprecation note for selectedMenuItemTextColor)
+-            auto selectedMenuItemColor = [[NSColor controlAccentColor] highlightWithLevel:0.3];
++            NSColor *selectedMenuItemColor; if (@available(macOS 10.14, *)) selectedMenuItemColor = [[NSColor controlAccentColor] highlightWithLevel:0.3]; else selectedMenuItemColor = [[NSColor selectedMenuItemColor] highlightWithLevel:0.3];
+             pal.setBrush(QPalette::Highlight, qt_mac_toQColor(selectedMenuItemColor));
+             qc = qt_mac_toQColor([NSColor labelColor]);
+             pal.setBrush(QPalette::ButtonText, qc);
+@@ -178,10 +180,13 @@ inline QMacPaletteMap(QPlatformTheme::Palette p, NSColor *a, NSColor *i) :
+         } else if (mac_widget_colors[i].paletteRole == QPlatformTheme::ItemViewPalette) {
+             NSArray<NSColor *> *baseColors = nil;
+             NSColor *activeHighlightColor = nil;
+-            baseColors = [NSColor alternatingContentBackgroundColors];
+-            activeHighlightColor = [NSColor selectedContentBackgroundColor];
+-            pal.setBrush(QPalette::Inactive, QPalette::HighlightedText,
+-                         qt_mac_toQBrush([NSColor unemphasizedSelectedTextColor]));
++            if (@available(macOS 10.14, *)) {
++                baseColors = [NSColor alternatingContentBackgroundColors]; activeHighlightColor = [NSColor selectedContentBackgroundColor];
++                pal.setBrush(QPalette::Inactive, QPalette::HighlightedText, qt_mac_toQBrush([NSColor unemphasizedSelectedTextColor]));
++            } else {
++                baseColors = [NSColor controlAlternatingRowBackgroundColors]; activeHighlightColor = [NSColor alternateSelectedControlColor];
++                pal.setBrush(QPalette::Inactive, QPalette::HighlightedText, qt_mac_toQBrush([NSColor selectedControlTextColor]));
++            }
+             pal.setBrush(QPalette::Base, qt_mac_toQBrush(baseColors[0]));
+             pal.setBrush(QPalette::AlternateBase, qt_mac_toQBrush(baseColors[1]));
+             pal.setBrush(QPalette::Active, QPalette::Highlight,
+@@ -298,16 +303,24 @@ inline QMacPaletteMap(QPlatformTheme::Palette p, NSColor *a, NSColor *i) :
+ 
+     if (type == SystemPalette) {
+         if (!m_systemPalette) {
+-            [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
++            if (@available(macOS 11.0, *)) {
++                [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
++                    m_systemPalette = qt_mac_createSystemPalette();
++                }];
++            } else {
+                 m_systemPalette = qt_mac_createSystemPalette();
+-            }];
++            }
+         }
+         return m_systemPalette;
+     } else {
+         if (m_palettes.isEmpty()) {
+-            [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
++            if (@available(macOS 11.0, *)) {
++                [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
++                    m_palettes = qt_mac_createRolePalettes();
++                }];
++            } else {
+                 m_palettes = qt_mac_createRolePalettes();
+-            }];
++            }
+         }
+         return m_palettes.value(type, nullptr);
+     }
+@@ -389,10 +402,13 @@ QPixmap qt_mac_convert_iconref(const IconRef icon, int width, int height)
+     case DirLinkOpenIcon:
+     case DirIcon:
+     case DirClosedIcon:
+-    case DirLinkIcon: {
+-        NSImage *icon = [NSWorkspace.sharedWorkspace iconForContentType:UTTypeFolder];
+-        return qt_mac_toQPixmap(icon, size);
+-    }
++    case DirLinkIcon:
++        if (@available(macOS 11.0, *)) {
++            NSImage *icon = [NSWorkspace.sharedWorkspace iconForContentType:UTTypeFolder];
++            return qt_mac_toQPixmap(icon, size);
++        }
++        iconType = kGenericFolderIcon;
++        break;
+     case FileLinkIcon:
+     case FileIcon:
+         iconType = kGenericDocumentIcon;
+@@ -504,7 +520,7 @@ QPixmap filePixmap(const QSize &size, QIcon::Mode, QIcon::State) override
+     NSAppearance *appearance = nil;
+     switch (scheme) {
+     case Qt::ColorScheme::Dark:
+-        appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
++        if (@available(macOS 10.14, *)) appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+         break;
+     case Qt::ColorScheme::Light:
+         appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+@@ -528,10 +544,14 @@ QPixmap filePixmap(const QSize &size, QIcon::Mode, QIcon::State) override
+ */
+ void QCocoaTheme::updateColorScheme()
+ {
+-    auto appearance = [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:
+-            @[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
+-    m_colorScheme = [appearance isEqualToString:NSAppearanceNameDarkAqua] ?
+-        Qt::ColorScheme::Dark : Qt::ColorScheme::Light;
++    if (@available(macOS 10.14, *)) {
++        auto appearance = [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:
++                @[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
++        m_colorScheme = [appearance isEqualToString:NSAppearanceNameDarkAqua] ?
++            Qt::ColorScheme::Dark : Qt::ColorScheme::Light;
++    } else {
++        m_colorScheme = Qt::ColorScheme::Light;
++    }
+ }
+ 
+ Qt::ContrastPreference QCocoaTheme::contrastPreference() const
