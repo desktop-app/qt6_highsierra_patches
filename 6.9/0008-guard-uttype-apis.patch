@@ -1,0 +1,62 @@
+diff --git a/src/corelib/io/qfilesystemengine_unix.cpp b/src/corelib/io/qfilesystemengine_unix.cpp
+index 71d802e2..01b3f6a6 100644
+--- a/src/corelib/io/qfilesystemengine_unix.cpp
++++ b/src/corelib/io/qfilesystemengine_unix.cpp
+@@ -148,9 +148,11 @@ static bool isPackage(const QFileSystemMetaData &data, const QFileSystemEntry &e
+ 
+     if (suffix.length() > 0) {
+         // First step: is it a bundle?
+-        const auto *utType = [UTType typeWithFilenameExtension:suffix.toNSString()];
+-        if ([utType conformsToType:UTTypeBundle])
+-            return true;
++        if (@available(macOS 11.0, *)) {
++            const auto *utType = [UTType typeWithFilenameExtension:suffix.toNSString()];
++            if ([utType conformsToType:UTTypeBundle])
++                return true;
++        }
+ 
+         // Second step: check if an application knows the package type
+         QCFType<CFStringRef> path = entry.filePath().toCFString();
+diff --git a/src/plugins/platforms/cocoa/qcocoadrag.mm b/src/plugins/platforms/cocoa/qcocoadrag.mm
+index 64df903e..7fae8136 100644
+--- a/src/plugins/platforms/cocoa/qcocoadrag.mm
++++ b/src/plugins/platforms/cocoa/qcocoadrag.mm
+@@ -162,7 +162,7 @@
+     for (NSPasteboardItem *item in dragBoard.pasteboardItems) {
+         bool isUrl = false;
+         for (NSPasteboardType type in item.types) {
+-            if ([type isEqualToString:UTTypeFileURL.identifier]) {
++            if ([type isEqualToString:@"public.file-url"]) {
+                 isUrl = true;
+                 break;
+             }
+diff --git a/src/plugins/platforms/cocoa/qcocoaintegration.mm b/src/plugins/platforms/cocoa/qcocoaintegration.mm
+index 63553b98..2dda1450 100644
+--- a/src/plugins/platforms/cocoa/qcocoaintegration.mm
++++ b/src/plugins/platforms/cocoa/qcocoaintegration.mm
+@@ -451,8 +451,10 @@ QSurfaceFormat format() const override
+         return;
+ 
+     static bool hasDefaultApplicationIcon = [](){
+-        NSImage *genericApplicationIcon = [NSWorkspace.sharedWorkspace
+-            iconForContentType:UTTypeApplicationBundle];
++        NSImage *genericApplicationIcon = nil;
++        if (@available(macOS 11.0, *))
++            genericApplicationIcon = [NSWorkspace.sharedWorkspace
++                iconForContentType:UTTypeApplicationBundle];
+         NSImage *applicationIcon = [NSImage imageNamed:NSImageNameApplicationIcon];
+ 
+         NSRect rect = NSMakeRect(0, 0, 32, 32);
+diff --git a/src/plugins/platforms/cocoa/qnsview_dragging.mm b/src/plugins/platforms/cocoa/qnsview_dragging.mm
+index b4c82ddc..f6b2f22d 100644
+--- a/src/plugins/platforms/cocoa/qnsview_dragging.mm
++++ b/src/plugins/platforms/cocoa/qnsview_dragging.mm
+@@ -16,7 +16,7 @@ -(void)registerDragTypes
+                    NSPasteboardTypeRTF, NSPasteboardTypeTabularText, NSPasteboardTypeFont,
+                    NSPasteboardTypeRuler, NSFileContentsPboardType,
+                    NSPasteboardTypeRTFD , NSPasteboardTypeHTML,
+-                   NSPasteboardTypeURL, NSPasteboardTypePDF, UTTypeVCard.identifier,
++                   NSPasteboardTypeURL, NSPasteboardTypePDF, @"public.vcard",
+                    (NSString *)kPasteboardTypeFileURLPromise,
+                    NSPasteboardTypeMultipleTextSelection, mimeTypeGeneric]];
+ 

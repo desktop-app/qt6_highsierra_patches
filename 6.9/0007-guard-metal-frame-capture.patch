@@ -1,0 +1,42 @@
+diff --git a/src/gui/util/qgraphicsframecapturemetal.mm b/src/gui/util/qgraphicsframecapturemetal.mm
+index fcf71dd7..7c19f8c2 100644
+--- a/src/gui/util/qgraphicsframecapturemetal.mm
++++ b/src/gui/util/qgraphicsframecapturemetal.mm
+@@ -22,7 +22,7 @@
+ {
+     qputenv("METAL_CAPTURE_ENABLED", QByteArrayLiteral("1"));
+ 
+-    m_captureDescriptor = [MTLCaptureDescriptor new];
++    if (@available(macOS 10.15, *)) m_captureDescriptor = [MTLCaptureDescriptor new];
+ }
+ 
+ QGraphicsFrameCaptureMetal::~QGraphicsFrameCaptureMetal()
+@@ -68,9 +68,9 @@
+ 
+     if (!m_captureManager) {
+         m_captureManager = MTLCaptureManager.sharedCaptureManager;
+-        bool supportDocs = [m_captureManager supportsDestination:MTLCaptureDestinationGPUTraceDocument];
++        bool supportDocs = false; if (@available(macOS 10.15, *)) supportDocs = [m_captureManager supportsDestination:MTLCaptureDestinationGPUTraceDocument];
+         if (supportDocs) {
+-            m_captureDescriptor.destination = MTLCaptureDestinationGPUTraceDocument;
++            if (@available(macOS 10.15, *)) m_captureDescriptor.destination = MTLCaptureDestinationGPUTraceDocument;
+             m_initialized = true;
+         }
+     }
+@@ -90,10 +90,12 @@
+     }
+ 
+     updateCaptureFileName();
+-    NSError *error;
+-    if (![m_captureManager startCaptureWithDescriptor:m_captureDescriptor error:&error]) {
+-        QString errorMsg = QString::fromNSString(error.localizedDescription);
+-        qCWarning(lcGraphicsFrameCapture, "Failed to start capture : %s", qPrintable(errorMsg));
++    if (@available(macOS 10.15, *)) {
++        NSError *error;
++        if (![m_captureManager startCaptureWithDescriptor:m_captureDescriptor error:&error]) {
++            QString errorMsg = QString::fromNSString(error.localizedDescription);
++            qCWarning(lcGraphicsFrameCapture, "Failed to start capture : %s", qPrintable(errorMsg));
++        }
+     }
+ }
+ 

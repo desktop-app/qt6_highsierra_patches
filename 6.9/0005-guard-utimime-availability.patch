@@ -1,0 +1,13 @@
+diff --git a/src/gui/platform/darwin/qutimimeconverter.mm b/src/gui/platform/darwin/qutimimeconverter.mm
+index 294a617f..3385d82e 100644
+--- a/src/gui/platform/darwin/qutimimeconverter.mm
++++ b/src/gui/platform/darwin/qutimimeconverter.mm
+@@ -785,7 +785,7 @@ QVariant convertToMime(const QString &mime, const QList<QByteArray> &data,
+
+     QCFType<CFMutableDataRef> data = CFDataCreateMutable(0, 0);
+     QCFType<CGImageDestinationRef> imageDestination = CGImageDestinationCreateWithData(data,
+-                                                        (CFStringRef)UTTypeTIFF.identifier, 1, 0);
++                                                        @"public.tiff", 1, 0);
+
+     if (!imageDestination)
+         return QList<QByteArray>();
