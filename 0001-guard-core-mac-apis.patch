@@ -1,5 +1,5 @@
 diff --git a/src/corelib/global/qsysinfo.cpp b/src/corelib/global/qsysinfo.cpp
-index ae762c0c..135bdd95 100644
+index 78e50cd8..382d574b 100644
 --- a/src/corelib/global/qsysinfo.cpp
 +++ b/src/corelib/global/qsysinfo.cpp
 @@ -1027,7 +1027,10 @@ QByteArray QSysInfo::machineUniqueId()
@@ -15,40 +15,22 @@ index ae762c0c..135bdd95 100644
      CFStringGetCString(stringRef, uuid, sizeof(uuid), kCFStringEncodingMacRoman);
      return QByteArray(uuid);
 diff --git a/src/corelib/kernel/qcore_mac.mm b/src/corelib/kernel/qcore_mac.mm
-index 9f27dbe6..58c46644 100644
+index 687fc7e8..e92d4402 100644
 --- a/src/corelib/kernel/qcore_mac.mm
 +++ b/src/corelib/kernel/qcore_mac.mm
-@@ -323,9 +323,12 @@ @implementation QT_MANGLE_NAMESPACE(QMacAutoReleasePoolTracker)
- #ifdef Q_OS_MACOS
- bool qt_mac_applicationIsInDarkMode()
- {
--    auto appearance = [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:
--            @[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
--    return [appearance isEqualToString:NSAppearanceNameDarkAqua];
-+    if (@available(macOS 10.14, *)) {
-+        auto appearance = [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:
-+                @[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
-+        return [appearance isEqualToString:NSAppearanceNameDarkAqua];
-+    }
-+    return false;
- }
- 
- bool qt_mac_runningUnderRosetta()
-@@ -372,7 +375,12 @@ bool qt_apple_runningWithLiquidGlass()
+@@ -369,7 +369,10 @@ bool qt_apple_runningWithLiquidGlass()
              return config;
  #endif
  
 -        QIOType<io_registry_entry_t> nvram = IORegistryEntryFromPath(kIOMainPortDefault, "IODeviceTree:/options");
 +        mach_port_t mainPort = 0;
-+        if (@available(macOS 12.0, *))
-+            mainPort = kIOMainPortDefault;
-+        else
-+            mainPort = kIOMasterPortDefault;
++        if (@available(macOS 12.0, *)) mainPort = kIOMainPortDefault;
++        else mainPort = kIOMasterPortDefault;
 +        QIOType<io_registry_entry_t> nvram = IORegistryEntryFromPath(mainPort, "IODeviceTree:/options");
          if (!nvram) {
              qWarning("Failed to locate NVRAM entry in IO registry");
              return {};
-@@ -409,6 +417,7 @@ bool qt_apple_runningWithLiquidGlass()
+@@ -423,6 +426,7 @@ bool qt_mac_processHasEntitlement(const QString &entitlement)
  void qt_mac_ensureResponsible()
  {
  #if !defined(QT_APPLE_NO_PRIVATE_APIS)
@@ -56,7 +38,7 @@ index 9f27dbe6..58c46644 100644
      if (!responsibility_get_pid_responsible_for_pid || !responsibility_spawnattrs_setdisclaim)
          return;
  
-@@ -441,6 +450,7 @@ void qt_mac_ensureResponsible()
+@@ -455,6 +459,7 @@ void qt_mac_ensureResponsible()
      char **argv = *_NSGetArgv();
      posix_spawnp(&pid, argv[0], nullptr, &attr, argv, environ);
      posix_spawnattr_destroy(&attr);

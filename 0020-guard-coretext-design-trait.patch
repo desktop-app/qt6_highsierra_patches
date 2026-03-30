@@ -1,8 +1,8 @@
 diff --git a/src/gui/text/coretext/qcoretextfontdatabase.mm b/src/gui/text/coretext/qcoretextfontdatabase.mm
-index 1877a5b55..0000000 100644
+index d13b23761..0000000 100644
 --- a/src/gui/text/coretext/qcoretextfontdatabase.mm
 +++ b/src/gui/text/coretext/qcoretextfontdatabase.mm
-@@ -971,13 +971,15 @@
+@@ -972,13 +972,15 @@
              };
  
              // Try populating the font variants based on its UI design trait, if available

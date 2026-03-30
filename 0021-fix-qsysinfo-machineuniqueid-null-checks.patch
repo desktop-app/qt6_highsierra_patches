@@ -1,8 +1,8 @@
 diff --git a/src/corelib/global/qsysinfo.cpp b/src/corelib/global/qsysinfo.cpp
-index 32bd91c46..0000000 100644
+index e5bba170e..0000000 100644
 --- a/src/corelib/global/qsysinfo.cpp
 +++ b/src/corelib/global/qsysinfo.cpp
-@@ -1012,12 +1012,17 @@
+@@ -1026,12 +1026,17 @@
  QByteArray QSysInfo::machineUniqueId()
  {
  #if defined(Q_OS_DARWIN) && __has_include(<IOKit/IOKitLib.h>)

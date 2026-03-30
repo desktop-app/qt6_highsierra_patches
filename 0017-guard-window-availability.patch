@@ -1,0 +1,94 @@
+diff --git a/src/plugins/platforms/cocoa/qcocoawindow.mm b/src/plugins/platforms/cocoa/qcocoawindow.mm
+index 2f045358..00401666 100644
+--- a/src/plugins/platforms/cocoa/qcocoawindow.mm
++++ b/src/plugins/platforms/cocoa/qcocoawindow.mm
+@@ -133,14 +133,14 @@ static void qRegisterNotificationCallbacks()
+
+         setMask(QHighDpi::toNativeLocalRegion(window()->mask(), window()));
+
+-        m_safeAreaInsetsObserver = QMacKeyValueObserver(
+-            m_view, @"safeAreaInsets", [this] {
+-                // Defer to next runloop pass, so that any changes to the
+-                // margins during resizing have settled down.
+-                QMetaObject::invokeMethod(this, [this]{
+-                    updateSafeAreaMarginsIfNeeded();
+-                }, Qt::QueuedConnection);
+-            }, NSKeyValueObservingOptionNew);
++        if (@available(macOS 11.0, *)) {
++            m_safeAreaInsetsObserver = QMacKeyValueObserver(
++                m_view, @"safeAreaInsets", [this] {
++                    QMetaObject::invokeMethod(this, [this]{
++                        updateSafeAreaMarginsIfNeeded();
++                    }, Qt::QueuedConnection);
++                }, NSKeyValueObservingOptionNew);
++        }
+
+     } else {
+         // Pick up essential foreign window state
+@@ -317,6 +317,10 @@ a normal (not maximized or full screen) top-level window.
+     // the current view (by setting additionalSafeAreaInsets). If the window
+     // uses NSWindowStyleMaskFullSizeContentView this also includes the area
+     // of the view covered by the title bar.
++    if (@available(macOS 11.0, *)) { } else {
++        return QMargins();
++    }
++
+     QMarginsF viewSafeAreaMargins = {
+         m_view.safeAreaInsets.left,
+         m_view.safeAreaInsets.top,
+@@ -324,22 +328,28 @@ a normal (not maximized or full screen) top-level window.
+         m_view.safeAreaInsets.bottom
+     };
+
+-    auto screenRect = m_view.window.screen.frame;
+-    auto screenInsets = m_view.window.screen.safeAreaInsets;
+-    auto screenRelativeViewBounds = QCocoaScreen::mapFromNative(
+-        [m_view.window convertRectToScreen:
+-            [m_view convertRect:m_view.bounds toView:nil]]
+-    );
+-
+-    QMarginsF screenSafeAreaMargins = {
+-        screenInsets.left ?
+-            qMax(0.0f, screenInsets.left - screenRelativeViewBounds.left())
+-            : 0.0f,
+-        screenInsets.top ?
+-            qMax(0.0f, screenInsets.top - screenRelativeViewBounds.top())
+-            : 0.0f,
+-        screenInsets.right ?
+-            qMax(0.0f, screenInsets.right
+-                - (screenRect.size.width - screenRelativeViewBounds.right()))
+-            : 0.0f,
+-        screenInsets.bottom ?
+-            qMax(0.0f, screenInsets.bottom
+-                - (screenRect.size.height - screenRelativeViewBounds.bottom()))
+-            : 0.0f
+-    };
++    QMarginsF screenSafeAreaMargins;
++    if (@available(macOS 12.0, *)) {
++        auto screenRect = m_view.window.screen.frame;
++        auto screenInsets = m_view.window.screen.safeAreaInsets;
++        auto screenRelativeViewBounds = QCocoaScreen::mapFromNative(
++            [m_view.window convertRectToScreen:
++                [m_view convertRect:m_view.bounds toView:nil]]
++        );
++
++        screenSafeAreaMargins = {
++            screenInsets.left ?
++                qMax(0.0f, screenInsets.left - screenRelativeViewBounds.left())
++                : 0.0f,
++            screenInsets.top ?
++                qMax(0.0f, screenInsets.top - screenRelativeViewBounds.top())
++                : 0.0f,
++            screenInsets.right ?
++                qMax(0.0f, screenInsets.right
++                    - (screenRect.size.width - screenRelativeViewBounds.right()))
++                : 0.0f,
++            screenInsets.bottom ?
++                qMax(0.0f, screenInsets.bottom
++                    - (screenRect.size.height - screenRelativeViewBounds.bottom()))
++                : 0.0f
++        };
++    }
+
+     return (screenSafeAreaMargins | viewSafeAreaMargins).toMargins();
+ }

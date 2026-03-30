@@ -1,0 +1,69 @@
+diff --git a/src/network/kernel/qnetconmonitor_darwin.mm b/src/network/kernel/qnetconmonitor_darwin.mm
+index 874dc656..f30c09ef 100644
+--- a/src/network/kernel/qnetconmonitor_darwin.mm
++++ b/src/network/kernel/qnetconmonitor_darwin.mm
+@@ -56,7 +56,7 @@ dispatch_queue_t qt_reachability_queue()
+
+ } // unnamed namespace
+
+-class QNetworkConnectionMonitorPrivate : public QObjectPrivate
++class API_AVAILABLE(macos(10.14)) QNetworkConnectionMonitorPrivate : public QObjectPrivate
+ {
+ public:
+     nw_path_status_t status = nw_path_status_invalid;
+@@ -155,6 +155,8 @@ void QNetworkConnectionMonitorPrivate::stopMonitoring()
+
+ void QNetworkConnectionMonitor::stopMonitoring()
+ {
++    if (@available(macOS 10.14, *)) { } else { return; }
++
+     Q_D(QNetworkConnectionMonitor);
+     d->stopMonitoring();
+ }
+@@ -177,6 +179,8 @@ QNetworkConnectionMonitor::~QNetworkConnectionMonitor()
+
+ bool QNetworkConnectionMonitor::setTargets(const QHostAddress &/*local*/, const QHostAddress &/*remote*/)
+ {
++    if (@available(macOS 10.14, *)) { } else { return false; }
++
+     return false;
+ }
+
+@@ -184,6 +188,8 @@ bool QNetworkConnectionMonitor::setTargets(const QHostAddress &/*local*/, const
+
+ bool QNetworkConnectionMonitor::startMonitoring()
+ {
++    if (@available(macOS 10.14, *)) { } else { return false; }
++
+     Q_D(QNetworkConnectionMonitor);
+
+     if (d->isMonitoring()) {
+@@ -196,6 +202,8 @@ bool QNetworkConnectionMonitor::startMonitoring()
+
+ bool QNetworkConnectionMonitor::isReachable()
+ {
++    if (@available(macOS 10.14, *)) { } else { return false; }
++
+     Q_D(QNetworkConnectionMonitor);
+
+     if (isMonitoring()) {
+@@ -208,6 +216,8 @@ bool QNetworkConnectionMonitor::isReachable()
+
+ QNetworkConnectionMonitor::InterfaceType QNetworkConnectionMonitor::getInterfaceType() const
+ {
++    if (@available(macOS 10.14, *)) { } else { return QNetworkConnectionMonitor::InterfaceType::Unknown; }
++
+     Q_D(const QNetworkConnectionMonitor);
+
+     if (d->isMonitoring()) {
+@@ -220,7 +230,9 @@ QNetworkConnectionMonitor::InterfaceType QNetworkConnectionMonitor::getInterface
+
+ bool QNetworkConnectionMonitor::isEnabled()
+ {
+-    return true;
++    if (@available(macOS 10.14, *))
++        return true;
++    return false;
+ }
+
+ bool QNetworkConnectionMonitor::isMonitoring() const

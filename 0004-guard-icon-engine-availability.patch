@@ -1,0 +1,60 @@
+diff --git a/src/gui/platform/darwin/qappleiconengine.mm b/src/gui/platform/darwin/qappleiconengine.mm
+index 775b4716..3fe28e01 100644
+--- a/src/gui/platform/darwin/qappleiconengine.mm
++++ b/src/gui/platform/darwin/qappleiconengine.mm
+@@ -24,6 +24,15 @@
+ namespace {
+ auto *loadImage(const QString &iconName)
+ {
++    if (@available(macOS 11.0, iOS 13.0, *)) { } else {
++        return static_cast<
++#if defined(Q_OS_MACOS)
++            NSImage
++#elif defined(QT_PLATFORM_UIKIT)
++            UIImage
++#endif
++        *>(nil);
++    }
+     static constexpr std::pair<QLatin1StringView, NSString *> iconMap[] = {
+         {"address-book-new"_L1, @"book.closed"},
+         {"application-exit"_L1, @"xmark.circle"},
+@@ -368,21 +377,28 @@
+ #if defined(Q_OS_MACOS)
+ auto *configuredImage(const NSImage *image, const QColor &color)
+ {
++    if (@available(macOS 11.0, *)) { } else {
++        return static_cast<NSImage *>(nil);
++    }
+     auto *config = [NSImageSymbolConfiguration configurationWithPointSize:48
+                                                weight:NSFontWeightRegular
+                                                scale:NSImageSymbolScaleLarge];
+
+-    // Apply tint color first, which switches the configuration to palette mode
+-    config = [config configurationByApplyingConfiguration:
+-        [NSImageSymbolConfiguration configurationWithPaletteColors:@[
+-            [NSColor colorWithSRGBRed:color.redF() green:color.greenF()
+-                blue:color.blueF() alpha:color.alphaF()]
+-        ]]];
+-
+-    // Then switch back to monochrome, as palette mode gives a different look
+-    // than monochrome, even with a single color.
+-    config = [config configurationByApplyingConfiguration:
+-        [NSImageSymbolConfiguration configurationPreferringMonochrome]];
++    if (@available(macOS 13.0, *)) {
++        config = [config configurationByApplyingConfiguration:
++            [NSImageSymbolConfiguration configurationWithPaletteColors:@[
++                [NSColor colorWithSRGBRed:color.redF() green:color.greenF()
++                    blue:color.blueF() alpha:color.alphaF()]
++            ]]];
++        config = [config configurationByApplyingConfiguration:
++            [NSImageSymbolConfiguration configurationPreferringMonochrome]];
++    } else if (@available(macOS 12.0, *)) {
++        config = [config configurationByApplyingConfiguration:
++            [NSImageSymbolConfiguration configurationWithPaletteColors:@[
++                [NSColor colorWithSRGBRed:color.redF() green:color.greenF()
++                    blue:color.blueF() alpha:color.alphaF()]
++            ]]];
++    }
+
+     return [image imageWithSymbolConfiguration:config];
+ }

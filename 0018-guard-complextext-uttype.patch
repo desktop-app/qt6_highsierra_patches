@@ -1,0 +1,32 @@
+diff --git a/src/plugins/platforms/cocoa/qnsview_complextext.mm b/src/plugins/platforms/cocoa/qnsview_complextext.mm
+index 2c53647a..d626817a 100644
+--- a/src/plugins/platforms/cocoa/qnsview_complextext.mm
++++ b/src/plugins/platforms/cocoa/qnsview_complextext.mm
+@@ -784,17 +784,17 @@ - (QString)utiForPasteboardType:(NSPasteboardType)pasteboardType
+     if (!pasteboardType)
+         return QString();
+ 
+-    UTType *uttype = [UTType typeWithIdentifier:pasteboardType];
+-    if (!uttype) {
+-        // Although NSPasteboard types are declared as obsolete
+-        // we still get callbacks for these types. As these types
+-        // are not UTIs, we need to resolve the underlying UTI
+-        // ourselves.
+-        uttype = [UTType typeWithTag:pasteboardType
+-            tagClass:QT_IGNORE_DEPRECATIONS((NSString*)kUTTagClassNSPboardType)
+-            conformingToType:nil];
++    if (@available(macOS 11.0, *)) {
++        UTType *uttype = [UTType typeWithIdentifier:pasteboardType];
++        if (!uttype) {
++            uttype = [UTType typeWithTag:pasteboardType
++                tagClass:QT_IGNORE_DEPRECATIONS((NSString*)kUTTagClassNSPboardType)
++                conformingToType:nil];
++        }
++        return QString::fromNSString(uttype.identifier);
+     }
+-    return QString::fromNSString(uttype.identifier);
++    // Pre-11.0: the pasteboard type is already a UTI string
++    return QString::fromNSString(pasteboardType);
+ }
+ 
+ @end

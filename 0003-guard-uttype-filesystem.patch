@@ -1,0 +1,19 @@
+diff --git a/src/corelib/io/qfilesystemengine_unix.cpp b/src/corelib/io/qfilesystemengine_unix.cpp
+index 94349295..b2f26bf6 100644
+--- a/src/corelib/io/qfilesystemengine_unix.cpp
++++ b/src/corelib/io/qfilesystemengine_unix.cpp
+@@ -148,9 +148,11 @@ static bool isPackage(const QFileSystemMetaData &data, const QFileSystemEntry &e
+ 
+     if (suffix.length() > 0) {
+         // First step: is it a bundle?
+-        const auto *utType = [UTType typeWithFilenameExtension:suffix.toNSString()];
+-        if ([utType conformsToType:UTTypeBundle])
+-            return true;
++        if (@available(macOS 11.0, *)) {
++            const auto *utType = [UTType typeWithFilenameExtension:suffix.toNSString()];
++            if ([utType conformsToType:UTTypeBundle])
++                return true;
++        }
+ 
+         // Second step: check if an application knows the package type
+         QCFType<CFStringRef> path = entry.filePath().toCFString();

@@ -1,5 +1,5 @@
 diff --git a/src/gui/rhi/qrhimetal.mm b/src/gui/rhi/qrhimetal.mm
-index 945b79b6..d9aa9536 100644
+index 4c618d29..1fbb094e 100644
 --- a/src/gui/rhi/qrhimetal.mm
 +++ b/src/gui/rhi/qrhimetal.mm
 @@ -536,18 +536,21 @@ bool QRhiMetalData::setupBinaryArchive(NSURL *sourceFileUrl)

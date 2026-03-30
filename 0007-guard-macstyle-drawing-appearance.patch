@@ -1,0 +1,54 @@
+diff --git a/src/gui/platform/macos/qmacstyle_p.h b/src/gui/platform/macos/qmacstyle_p.h
+index bbfbc1a0..d43a347f 100644
+--- a/src/gui/platform/macos/qmacstyle_p.h
++++ b/src/gui/platform/macos/qmacstyle_p.h
+@@ -51,28 +51,43 @@ public:
+     void drawPrimitive(typename Style::PrimitiveElement pe, const QStyleOption *opt, QPainter *p
+                        OPTIONAL_WIDGET_ARGUMENT) const override
+     {
+-        [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
++        if (@available(macOS 11.0, *)) {
++            [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
++                Style::drawPrimitive(pe, opt, p
++                    FORWARD_OPTIONAL_WIDGET_ARGUMENT);
++            }];
++        } else {
+             Style::drawPrimitive(pe, opt, p
+                 FORWARD_OPTIONAL_WIDGET_ARGUMENT);
+-        }];
++        }
+     }
+ 
+     void drawControl(typename Style::ControlElement element, const QStyleOption *opt, QPainter *p
+                      OPTIONAL_WIDGET_ARGUMENT) const override
+     {
+-        [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
++        if (@available(macOS 11.0, *)) {
++            [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
++                Style::drawControl(element, opt, p
++                    FORWARD_OPTIONAL_WIDGET_ARGUMENT);
++            }];
++        } else {
+             Style::drawControl(element, opt, p
+                 FORWARD_OPTIONAL_WIDGET_ARGUMENT);
+-        }];
++        }
+     }
+ 
+     void drawComplexControl(typename Style::ComplexControl cc, const QStyleOptionComplex *opt, QPainter *p
+                             OPTIONAL_WIDGET_ARGUMENT) const override
+     {
+-        [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
++        if (@available(macOS 11.0, *)) {
++            [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
++                Style::drawComplexControl(cc, opt, p
++                    FORWARD_OPTIONAL_WIDGET_ARGUMENT);
++            }];
++        } else {
+             Style::drawComplexControl(cc, opt, p
+                 FORWARD_OPTIONAL_WIDGET_ARGUMENT);
+-        }];
++        }
+     }
+ };
+ 
