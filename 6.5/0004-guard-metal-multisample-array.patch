@@ -1,0 +1,13 @@
+diff --git a/src/gui/rhi/qrhimetal.mm b/src/gui/rhi/qrhimetal.mm
+index f0bbf55e..8d5b4d85 100644
+--- a/src/gui/rhi/qrhimetal.mm
++++ b/src/gui/rhi/qrhimetal.mm
+@@ -3535,7 +3535,7 @@ static inline MTLPixelFormat toMetalTextureFormat(QRhiTexture::Format format, QR
+         }
+         desc.textureType = MTLTextureType2DArray;
+ #else
+-        desc.textureType = samples > 1 ? MTLTextureType2DMultisampleArray : MTLTextureType2DArray;
++        if (samples > 1) { if (@available(macOS 10.14, *)) desc.textureType = MTLTextureType2DMultisampleArray; else desc.textureType = MTLTextureType2DArray; } else { desc.textureType = MTLTextureType2DArray; }
+ #endif
+     } else {
+         desc.textureType = samples > 1 ? MTLTextureType2DMultisample : MTLTextureType2D;
