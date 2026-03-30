@@ -1,0 +1,20 @@
+diff --git a/src/corelib/kernel/qcore_mac.mm b/src/corelib/kernel/qcore_mac.mm
+index 65de7146..e6b7a029 100644
+--- a/src/corelib/kernel/qcore_mac.mm
++++ b/src/corelib/kernel/qcore_mac.mm
+@@ -315,9 +315,12 @@ @implementation QT_MANGLE_NAMESPACE(QMacAutoReleasePoolTracker)
+ #ifdef Q_OS_MACOS
+ bool qt_mac_applicationIsInDarkMode()
+ {
+-    auto appearance = [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:
+-            @[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
+-    return [appearance isEqualToString:NSAppearanceNameDarkAqua];
++    if (@available(macOS 10.14, *)) {
++        auto appearance = [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:
++                @[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
++        return [appearance isEqualToString:NSAppearanceNameDarkAqua];
++    }
++    return false;
+ }
+ 
+ bool qt_mac_runningUnderRosetta()
