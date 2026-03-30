@@ -1,0 +1,12 @@
+diff --git a/src/corelib/plugin/qfactoryloader.cpp b/src/corelib/plugin/qfactoryloader.cpp
+index b59435e9..52162a03 100644
+--- a/src/corelib/plugin/qfactoryloader.cpp
++++ b/src/corelib/plugin/qfactoryloader.cpp
+@@ -9,6 +9,7 @@
+ 
+ #include "private/qcoreapplication_p.h"
+ #include "private/qduplicatetracker_p.h"
++#include "qset.h"
+ #include "private/qloggingregistry_p.h"
+ #include "private/qobject_p.h"
+ #include "qcborarray.h"

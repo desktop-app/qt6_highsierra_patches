@@ -1,0 +1,52 @@
+diff --git a/src/plugins/platforms/cocoa/qcocoatheme.mm b/src/plugins/platforms/cocoa/qcocoatheme.mm
+index b836b816..57860c20 100644
+--- a/src/plugins/platforms/cocoa/qcocoatheme.mm
++++ b/src/plugins/platforms/cocoa/qcocoatheme.mm
+@@ -62,7 +62,11 @@
+     // System palette initialization:
+     QBrush br = qt_mac_toQBrush([NSColor selectedControlColor]);
+     palette->setBrush(QPalette::Active, QPalette::Highlight, br);
+-    const auto inactiveHighlight = qt_mac_toQBrush([NSColor unemphasizedSelectedContentBackgroundColor]);
++    QBrush inactiveHighlight;
++    if (@available(macOS 10.14, *))
++        inactiveHighlight = qt_mac_toQBrush([NSColor unemphasizedSelectedContentBackgroundColor]);
++    else
++        inactiveHighlight = qt_mac_toQBrush([NSColor secondarySelectedControlColor]);
+     palette->setBrush(QPalette::Inactive, QPalette::Highlight, inactiveHighlight);
+     palette->setBrush(QPalette::Disabled, QPalette::Highlight, inactiveHighlight);
+ 
+@@ -150,7 +154,11 @@ inline QMacPaletteMap(QPlatformTheme::Palette p, NSColor *a, NSColor *i) :
+         if (mac_widget_colors[i].paletteRole == QPlatformTheme::MenuPalette
+                 || mac_widget_colors[i].paletteRole == QPlatformTheme::MenuBarPalette) {
+             // Cheap approximation for NSVisualEffectView (see deprecation note for selectedMenuItemTextColor)
+-            auto selectedMenuItemColor = [[NSColor controlAccentColor] highlightWithLevel:0.3];
++            NSColor *selectedMenuItemColor;
++            if (@available(macOS 10.14, *))
++                selectedMenuItemColor = [[NSColor controlAccentColor] highlightWithLevel:0.3];
++            else
++                selectedMenuItemColor = [[NSColor selectedMenuItemColor] highlightWithLevel:0.3];
+             pal.setBrush(QPalette::Highlight, qt_mac_toQColor(selectedMenuItemColor));
+             qc = qt_mac_toQColor([NSColor labelColor]);
+             pal.setBrush(QPalette::ButtonText, qc);
+@@ -171,10 +179,17 @@ inline QMacPaletteMap(QPlatformTheme::Palette p, NSColor *a, NSColor *i) :
+         } else if (mac_widget_colors[i].paletteRole == QPlatformTheme::ItemViewPalette) {
+             NSArray<NSColor *> *baseColors = nil;
+             NSColor *activeHighlightColor = nil;
+-            baseColors = [NSColor alternatingContentBackgroundColors];
+-            activeHighlightColor = [NSColor selectedContentBackgroundColor];
+-            pal.setBrush(QPalette::Inactive, QPalette::HighlightedText,
+-                         qt_mac_toQBrush([NSColor unemphasizedSelectedTextColor]));
++            if (@available(macOS 10.14, *)) {
++                baseColors = [NSColor alternatingContentBackgroundColors];
++                activeHighlightColor = [NSColor selectedContentBackgroundColor];
++                pal.setBrush(QPalette::Inactive, QPalette::HighlightedText,
++                             qt_mac_toQBrush([NSColor unemphasizedSelectedTextColor]));
++            } else {
++                baseColors = [NSColor controlAlternatingRowBackgroundColors];
++                activeHighlightColor = [NSColor alternateSelectedControlColor];
++                pal.setBrush(QPalette::Inactive, QPalette::HighlightedText,
++                             qt_mac_toQBrush([NSColor selectedControlTextColor]));
++            }
+             pal.setBrush(QPalette::Base, qt_mac_toQBrush(baseColors[0]));
+             pal.setBrush(QPalette::AlternateBase, qt_mac_toQBrush(baseColors[1]));
+             pal.setBrush(QPalette::Active, QPalette::Highlight,

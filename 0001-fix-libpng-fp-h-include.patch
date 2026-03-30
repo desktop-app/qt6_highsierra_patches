@@ -1,8 +1,8 @@
 diff --git a/src/3rdparty/libpng/pngpriv.h b/src/3rdparty/libpng/pngpriv.h
-index acfc9cf2..97d593b2 100644
+index b8a73b68..559c0068 100644
 --- a/src/3rdparty/libpng/pngpriv.h
 +++ b/src/3rdparty/libpng/pngpriv.h
-@@ -529,7 +529,7 @@
+@@ -515,7 +515,7 @@
  #  include <float.h>
  
  #  if (defined(__MWERKS__) && defined(macintosh)) || defined(applec) || \

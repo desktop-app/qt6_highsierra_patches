@@ -1,8 +1,8 @@
 diff --git a/src/gui/rhi/qrhimetal.mm b/src/gui/rhi/qrhimetal.mm
-index 24674e48..a103071d 100644
+index 70e5825a..ed7aebae 100644
 --- a/src/gui/rhi/qrhimetal.mm
 +++ b/src/gui/rhi/qrhimetal.mm
-@@ -2777,7 +2777,14 @@ static inline MTLPixelFormat toMetalTextureFormat(QRhiTexture::Format format, QR
+@@ -2906,7 +2906,14 @@ static inline MTLPixelFormat toMetalTextureFormat(QRhiTexture::Format format, QR
          }
          desc.textureType = MTLTextureType2DArray;
  #else
