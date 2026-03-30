@@ -1,0 +1,36 @@
+diff --git a/src/corelib/kernel/qcore_mac.mm b/src/corelib/kernel/qcore_mac.mm
+index 8ec04643..4e0f07bf 100644
+--- a/src/corelib/kernel/qcore_mac.mm
++++ b/src/corelib/kernel/qcore_mac.mm
+@@ -323,9 +323,12 @@ @implementation QT_MANGLE_NAMESPACE(QMacAutoReleasePoolTracker)
+ #ifdef Q_OS_MACOS
+ bool qt_mac_applicationIsInDarkMode()
+ {
+-    auto appearance = [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:
+-            @[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
+-    return [appearance isEqualToString:NSAppearanceNameDarkAqua];
++    if (@available(macOS 10.14, *)) {
++        auto appearance = [NSApp.effectiveAppearance bestMatchFromAppearancesWithNames:
++                @[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
++        return [appearance isEqualToString:NSAppearanceNameDarkAqua];
++    }
++    return false;
+ }
+ 
+ bool qt_mac_runningUnderRosetta()
+@@ -383,6 +386,7 @@ bool qt_mac_runningUnderRosetta()
+ void qt_mac_ensureResponsible()
+ {
+ #if !defined(QT_APPLE_NO_PRIVATE_APIS)
++    if (@available(macOS 10.14, *)) {
+     if (!responsibility_get_pid_responsible_for_pid || !responsibility_spawnattrs_setdisclaim)
+         return;
+ 
+@@ -415,6 +419,7 @@ void qt_mac_ensureResponsible()
+     char **argv = *_NSGetArgv();
+     posix_spawnp(&pid, argv[0], nullptr, &attr, argv, environ);
+     posix_spawnattr_destroy(&attr);
++    }
+ #endif
+ }
+ #endif // QT_BUILD_INTERNAL
