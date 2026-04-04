@@ -1,0 +1,95 @@
+diff --git a/src/plugins/platforms/cocoa/qcocoawindow.mm b/src/plugins/platforms/cocoa/qcocoawindow.mm
+index f6481ea2b4c..0c2359554ed 100644
+--- a/src/plugins/platforms/cocoa/qcocoawindow.mm
++++ b/src/plugins/platforms/cocoa/qcocoawindow.mm
+@@ -133,14 +133,14 @@ static void qRegisterNotificationCallbacks()
+
+         setMask(QHighDpi::toNativeLocalRegion(window()->mask(), window()));
+
+-        m_safeAreaInsetsObserver = QMacKeyValueObserver(
+-            m_view, @"safeAreaInsets", [this] {
+-                // Defer to next runloop pass, so that any changes to the
+-                // margins during resizing have settled down.
+-                QMetaObject::invokeMethod(this, [this]{
+-                    updateSafeAreaMarginsIfNeeded();
+-                }, Qt::QueuedConnection);
+-            }, NSKeyValueObservingOptionNew);
++        if (@available(macOS 11.0, *)) {
++            m_safeAreaInsetsObserver = QMacKeyValueObserver(
++                m_view, @"safeAreaInsets", [this] {
++                    QMetaObject::invokeMethod(this, [this]{
++                        updateSafeAreaMarginsIfNeeded();
++                    }, Qt::QueuedConnection);
++                }, NSKeyValueObservingOptionNew);
++        }
+
+     } else {
+         // Pick up essential foreign window state
+@@ -317,6 +317,10 @@ a normal (not maximized or full screen) top-level window.
+     // the current view (by setting additionalSafeAreaInsets). If the window
+     // uses NSWindowStyleMaskFullSizeContentView this also includes the area
+     // of the view covered by the title bar.
++    if (@available(macOS 11.0, *)) { } else {
++        return QMargins();
++    }
++
+     QMarginsF viewSafeAreaMargins = {
+         m_view.safeAreaInsets.left,
+         m_view.safeAreaInsets.top,
+@@ -324,33 +328,29 @@ a normal (not maximized or full screen) top-level window.
+         m_view.safeAreaInsets.bottom
+     };
+
+-    // The screen's safe area insets represent the distances from the screen's
+-    // edges at which content isn't obscured. The view's safe area margins do
+-    // not include the screen's insets automatically, so we need to manually
+-    // merge them.
+-    auto screenRect = m_view.window.screen.frame;
+-    auto screenInsets = m_view.window.screen.safeAreaInsets;
+-    auto screenSafeArea = QCocoaScreen::mapFromNative(NSMakeRect(
+-        NSMinX(screenRect) + screenInsets.left,
+-        NSMinY(screenRect) + screenInsets.bottom, // Non-flipped
+-        NSWidth(screenRect) - screenInsets.left - screenInsets.right,
+-        NSHeight(screenRect) - screenInsets.top - screenInsets.bottom
+-    ));
+-
+-    auto screenRelativeViewBounds = QCocoaScreen::mapFromNative(
+-        [m_view.window convertRectToScreen:
+-            [m_view convertRect:m_view.bounds toView:nil]]
+-    );
+-
+-    // The margins are relative to the screen the window is on.
+-    // Note that we do not want represent the area outside of the
+-    // screen as being outside of the safe area.
+-    QMarginsF screenSafeAreaMargins = {
+-        qMin(screenSafeArea.left() - screenRelativeViewBounds.left(), screenInsets.left),
+-        qMin(screenSafeArea.top() - screenRelativeViewBounds.top(), screenInsets.top),
+-        qMin(screenRelativeViewBounds.right() - screenSafeArea.right(), screenInsets.right),
+-        qMin(screenRelativeViewBounds.bottom() - screenSafeArea.bottom(), screenInsets.bottom)
+-    };
++    QMarginsF screenSafeAreaMargins;
++    if (@available(macOS 12.0, *)) {
++        auto screenRect = m_view.window.screen.frame;
++        auto screenInsets = m_view.window.screen.safeAreaInsets;
++        auto screenSafeArea = QCocoaScreen::mapFromNative(NSMakeRect(
++            NSMinX(screenRect) + screenInsets.left,
++            NSMinY(screenRect) + screenInsets.bottom,
++            NSWidth(screenRect) - screenInsets.left - screenInsets.right,
++            NSHeight(screenRect) - screenInsets.top - screenInsets.bottom
++        ));
++
++        auto screenRelativeViewBounds = QCocoaScreen::mapFromNative(
++            [m_view.window convertRectToScreen:
++                [m_view convertRect:m_view.bounds toView:nil]]
++        );
++
++        screenSafeAreaMargins = {
++            qMin(screenSafeArea.left() - screenRelativeViewBounds.left(), screenInsets.left),
++            qMin(screenSafeArea.top() - screenRelativeViewBounds.top(), screenInsets.top),
++            qMin(screenRelativeViewBounds.right() - screenSafeArea.right(), screenInsets.right),
++            qMin(screenRelativeViewBounds.bottom() - screenSafeArea.bottom(), screenInsets.bottom)
++        };
++    }
+
+     return (screenSafeAreaMargins | viewSafeAreaMargins).toMargins();
+ }

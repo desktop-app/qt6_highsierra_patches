@@ -1,0 +1,16 @@
+diff --git a/src/plugins/platforms/cocoa/qcocoascreen.mm b/src/plugins/platforms/cocoa/qcocoascreen.mm
+index d612964e..977828da 100644
+--- a/src/plugins/platforms/cocoa/qcocoascreen.mm
++++ b/src/plugins/platforms/cocoa/qcocoascreen.mm
+@@ -247,7 +247,10 @@
+     float refresh = CGDisplayModeGetRefreshRate(displayMode);
+     m_refreshRate = refresh > 0 ? refresh : 60.0;
+     m_rotation = CGDisplayRotation(displayId);
+-    m_name = QString::fromNSString(nsScreen.localizedName);
++    if (@available(macOS 10.15, *))
++        m_name = QString::fromNSString(nsScreen.localizedName);
++    else
++        m_name = QString::asprintf("Display-%u", displayId);
+ 
+     const bool didChangeGeometry = m_geometry != previousGeometry || m_availableGeometry != previousAvailableGeometry;
+ 

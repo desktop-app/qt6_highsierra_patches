@@ -1,0 +1,179 @@
+diff --git a/src/gui/painting/qcoregraphics.mm b/src/gui/painting/qcoregraphics.mm
+index 819f3c8e5d2..8e3e127cafe 100644
+--- a/src/gui/painting/qcoregraphics.mm
++++ b/src/gui/painting/qcoregraphics.mm
+@@ -85,23 +85,33 @@
+         break;
+     case QPixelFormat::UnsignedShort:
+         bitmapInfo |= byteOrder16Bit;
+-        if (isPacked(format))
+-            bitmapInfo |= kCGImagePixelFormatPacked;
+-        else if (rgbBits == std::tuple{5,5,5} && alphaBits == 1)
+-            bitmapInfo |= kCGImagePixelFormatRGB555;
+-        else if (rgbBits == std::tuple{5,6,5} && !alphaBits)
+-            bitmapInfo |= kCGImagePixelFormatRGB565;
+-        else
+-            return {};
++        if (@available(macOS 10.14, iOS 12.0, *)) {
++            if (isPacked(format))
++                bitmapInfo |= kCGImagePixelFormatPacked;
++            else if (rgbBits == std::tuple{5,5,5} && alphaBits == 1)
++                bitmapInfo |= kCGImagePixelFormatRGB555;
++            else if (rgbBits == std::tuple{5,6,5} && !alphaBits)
++                bitmapInfo |= kCGImagePixelFormatRGB565;
++            else
++                return {};
++        } else {
++            if (!isPacked(format))
++                return {};
++        }
+         break;
+     case QPixelFormat::UnsignedInteger:
+         bitmapInfo |= byteOrder32Bit;
+-        if (isPacked(format))
+-            bitmapInfo |= kCGImagePixelFormatPacked;
+-        else if (rgbBits == std::tuple{10,10,10} && alphaBits == 2)
+-            bitmapInfo |= kCGImagePixelFormatRGB101010;
+-        else
+-            return {};
++        if (@available(macOS 10.14, iOS 12.0, *)) {
++            if (isPacked(format))
++                bitmapInfo |= kCGImagePixelFormatPacked;
++            else if (rgbBits == std::tuple{10,10,10} && alphaBits == 2)
++                bitmapInfo |= kCGImagePixelFormatRGB101010;
++            else
++                return {};
++        } else {
++            if (!isPacked(format))
++                return {};
++        }
+         break;
+     case QPixelFormat::FloatingPoint:
+         bitmapInfo |= kCGBitmapFloatComponents;
+@@ -240,18 +250,21 @@ void qt_mac_drawCGImage(CGContextRef inContext, const CGRect *inBounds, CGImageR
+     }();
+ 
+     auto [redSize, greenSize, blueSize, alphaSize] = [&]() -> std::tuple<uchar,uchar,uchar,uchar> {
+-        const auto pixelFormat = CGImagePixelFormatInfo(bitmapInfo & kCGImagePixelFormatMask);
+         const size_t bpc = CGImageGetBitsPerComponent(image);
+-        if (pixelFormat == kCGImagePixelFormatPacked)
+-            return {bpc, bpc, bpc, alphaInfo != kCGImageAlphaNone ? bpc : 0};
+-        else if (pixelFormat == kCGImagePixelFormatRGB555)
+-            return {5, 5, 5, 1};
+-        else if (pixelFormat == kCGImagePixelFormatRGB565)
+-            return {5, 6, 5, 0};
+-        else if (pixelFormat == kCGImagePixelFormatRGB101010)
+-            return {10, 10, 10, 2};
+-        else
+-            return {0, 0, 0, 0};
++        if (@available(macOS 10.14, iOS 12.0, *)) {
++            const auto pixelFormat = CGImagePixelFormatInfo(bitmapInfo & kCGImagePixelFormatMask);
++            if (pixelFormat == kCGImagePixelFormatPacked)
++                return {bpc, bpc, bpc, alphaInfo != kCGImageAlphaNone ? bpc : 0};
++            else if (pixelFormat == kCGImagePixelFormatRGB555)
++                return {5, 5, 5, 1};
++            else if (pixelFormat == kCGImagePixelFormatRGB565)
++                return {5, 6, 5, 0};
++            else if (pixelFormat == kCGImagePixelFormatRGB101010)
++                return {10, 10, 10, 2};
++            else
++                return {0, 0, 0, 0};
++        }
++        return {bpc, bpc, bpc, alphaInfo != kCGImageAlphaNone ? bpc : 0};
+     }();
+ 
+     QPixelFormat pixelFormat(QPixelFormat::RGB, redSize, greenSize, blueSize, 0, 0,
+@@ -493,31 +506,38 @@ QColor qt_mac_toQColor(const NSColor *color)
+         return QColor();
+ 
+     QColor qtColor;
+-    switch (color.type) {
+-    case NSColorTypeComponentBased: {
+-        const NSColorSpace *colorSpace = [color colorSpace];
+-        if (colorSpace == NSColorSpace.genericRGBColorSpace
+-            && color.numberOfComponents == 4) { // rbga
+-            CGFloat components[4];
+-            [color getComponents:components];
+-            qtColor.setRgbF(components[0], components[1], components[2], components[3]);
+-            break;
+-        } else if (colorSpace == NSColorSpace.genericCMYKColorSpace
+-                   && color.numberOfComponents == 5) { // cmyk + alpha
+-            CGFloat components[5];
+-            [color getComponents:components];
+-            qtColor.setCmykF(components[0], components[1], components[2], components[3], components[4]);
++    if (@available(macOS 10.14, *)) {
++        switch (color.type) {
++        case NSColorTypeComponentBased: {
++            const NSColorSpace *colorSpace = [color colorSpace];
++            if (colorSpace == NSColorSpace.genericRGBColorSpace
++                && color.numberOfComponents == 4) {
++                CGFloat components[4];
++                [color getComponents:components];
++                qtColor.setRgbF(components[0], components[1], components[2], components[3]);
++                break;
++            } else if (colorSpace == NSColorSpace.genericCMYKColorSpace
++                       && color.numberOfComponents == 5) {
++                CGFloat components[5];
++                [color getComponents:components];
++                qtColor.setCmykF(components[0], components[1], components[2], components[3], components[4]);
++                break;
++            }
++        }
++            Q_FALLTHROUGH();
++        default: {
++            const NSColor *tmpColor = [color colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
++            CGFloat red = 0, green = 0, blue = 0, alpha = 0;
++            [tmpColor getRed:&red green:&green blue:&blue alpha:&alpha];
++            qtColor.setRgbF(red, green, blue, alpha);
+             break;
+         }
+-    }
+-        Q_FALLTHROUGH();
+-    default: {
++        }
++    } else {
+         const NSColor *tmpColor = [color colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
+         CGFloat red = 0, green = 0, blue = 0, alpha = 0;
+         [tmpColor getRed:&red green:&green blue:&blue alpha:&alpha];
+         qtColor.setRgbF(red, green, blue, alpha);
+-        break;
+-    }
+     }
+ 
+     return qtColor;
+@@ -542,13 +562,14 @@ QBrush qt_mac_toQBrush(CGColorRef color)
+ #ifdef Q_OS_MACOS
+ static bool qt_mac_isSystemColorOrInstance(const NSColor *color, NSString *colorNameComponent, NSString *className)
+ {
+-    // We specifically do not want isKindOfClass: here
+-    if ([color.className isEqualToString:className]) // NSPatternColorSpace
+-        return true;
+-    if (color.type == NSColorTypeCatalog &&
+-        [color.catalogNameComponent isEqualToString:@"System"] &&
+-        [color.colorNameComponent isEqualToString:colorNameComponent])
++    if ([color.className isEqualToString:className])
+         return true;
++    if (@available(macOS 10.14, *)) {
++        if (color.type == NSColorTypeCatalog &&
++            [color.catalogNameComponent isEqualToString:@"System"] &&
++            [color.colorNameComponent isEqualToString:colorNameComponent])
++            return true;
++    }
+     return false;
+ }
+ 
+@@ -603,10 +624,12 @@ QBrush qt_mac_toQBrush(const NSColor *color, QPalette::ColorGroup colorGroup)
+         return qtBrush;
+     }
+ 
+-    if (color.type == NSColorTypePattern) {
++    bool isPattern = false;
++    if (@available(macOS 10.14, *))
++        isPattern = (color.type == NSColorTypePattern);
++    if (isPattern) {
+         NSImage *patternImage = color.patternImage;
+         const QSizeF sz(patternImage.size.width, patternImage.size.height);
+-        // FIXME: QBrush is not resolution independent (QTBUG-49774)
+         qtBrush.setTexture(qt_mac_toQPixmap(patternImage, sz));
+     } else {
+         qtBrush.setStyle(Qt::SolidPattern);

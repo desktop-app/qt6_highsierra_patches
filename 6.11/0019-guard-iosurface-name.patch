@@ -1,0 +1,14 @@
+diff --git a/src/plugins/platforms/cocoa/qiosurfacegraphicsbuffer.mm b/src/plugins/platforms/cocoa/qiosurfacegraphicsbuffer.mm
+index 2cfadf8c525..e3928da8f8f 100644
+--- a/src/plugins/platforms/cocoa/qiosurfacegraphicsbuffer.mm
++++ b/src/plugins/platforms/cocoa/qiosurfacegraphicsbuffer.mm
+@@ -48,7 +48,8 @@
+     Q_ASSERT(size_t(byteCount()) == totalBytes);
+ 
+     QObject::connect(this, &QObject::objectNameChanged, this, [this]{
+-        IOSurfaceSetValue(m_surface, kIOSurfaceName, objectName().toNSString());
++        if (@available(macOS 11.0, *))
++            IOSurfaceSetValue(m_surface, kIOSurfaceName, objectName().toNSString());
+     });
+ }
+ 

@@ -1,0 +1,31 @@
+diff --git a/src/corelib/kernel/qcore_mac.mm b/src/corelib/kernel/qcore_mac.mm
+index 687fc7e85fa..d5dd6bb6f77 100644
+--- a/src/corelib/kernel/qcore_mac.mm
++++ b/src/corelib/kernel/qcore_mac.mm
+@@ -271,8 +271,10 @@ @implementation QT_MANGLE_NAMESPACE(QMacAutoReleasePoolTracker)
+ 
+     void *poolFrame = nullptr;
+     void *frames[2];
+-    if (backtrace_from_fp(__builtin_frame_address(0), frames, 2))
+-        poolFrame = frames[1];
++    if (@available(macOS 12.0, *)) {
++        if (backtrace_from_fp(__builtin_frame_address(0), frames, 2))
++            poolFrame = frames[1];
++    }
+ 
+     if (poolFrame) {
+         Dl_info info;
+@@ -369,7 +371,12 @@ bool qt_apple_runningWithLiquidGlass()
+             return config;
+ #endif
+ 
+-        QIOType<io_registry_entry_t> nvram = IORegistryEntryFromPath(kIOMainPortDefault, "IODeviceTree:/options");
++        mach_port_t mainPort = 0;
++        if (@available(macOS 12.0, *))
++            mainPort = kIOMainPortDefault;
++        else
++            mainPort = kIOMasterPortDefault;
++        QIOType<io_registry_entry_t> nvram = IORegistryEntryFromPath(mainPort, "IODeviceTree:/options");
+         if (!nvram) {
+             qWarning("Failed to locate NVRAM entry in IO registry");
+             return {};

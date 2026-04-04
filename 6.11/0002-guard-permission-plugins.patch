@@ -1,0 +1,237 @@
+diff --git a/src/corelib/platform/darwin/qdarwinpermissionplugin_bluetooth.mm b/src/corelib/platform/darwin/qdarwinpermissionplugin_bluetooth.mm
+index ccb8a6af0d9..dc18869ed47 100644
+--- a/src/corelib/platform/darwin/qdarwinpermissionplugin_bluetooth.mm
++++ b/src/corelib/platform/darwin/qdarwinpermissionplugin_bluetooth.mm
+@@ -31,18 +31,20 @@ - (instancetype)init
+ 
+ - (Qt::PermissionStatus)currentStatus
+ {
+-    auto status = CBCentralManager.authorization;
+-    switch (status) {
+-    case CBManagerAuthorizationNotDetermined:
+-        return Qt::PermissionStatus::Undetermined;
+-    case CBManagerAuthorizationRestricted:
+-    case CBManagerAuthorizationDenied:
+-        return Qt::PermissionStatus::Denied;
+-    case CBManagerAuthorizationAllowedAlways:
+-        return Qt::PermissionStatus::Granted;
++    if (@available(macOS 10.15, *)) {
++        auto status = CBCentralManager.authorization;
++        switch (status) {
++        case CBManagerAuthorizationNotDetermined:
++            return Qt::PermissionStatus::Undetermined;
++        case CBManagerAuthorizationRestricted:
++        case CBManagerAuthorizationDenied:
++            return Qt::PermissionStatus::Denied;
++        case CBManagerAuthorizationAllowedAlways:
++            return Qt::PermissionStatus::Granted;
++        }
++
++        qCWarning(lcPermissions) << "Unknown permission status" << status << "detected in" << self;
+     }
+-
+-    qCWarning(lcPermissions) << "Unknown permission status" << status << "detected in" << self;
+     return Qt::PermissionStatus::Denied;
+ }
+ 
+diff --git a/src/corelib/platform/darwin/qdarwinpermissionplugin_camera.mm b/src/corelib/platform/darwin/qdarwinpermissionplugin_camera.mm
+index 51c517d6f30..c2abb95edad 100644
+--- a/src/corelib/platform/darwin/qdarwinpermissionplugin_camera.mm
++++ b/src/corelib/platform/darwin/qdarwinpermissionplugin_camera.mm
+@@ -12,8 +12,11 @@
+ @implementation QDarwinCameraPermissionHandler
+ - (Qt::PermissionStatus)checkPermission:(QPermission)permission
+ {
+-    const auto status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
+-    return nativeStatusToQtStatus(status);
++    if (@available(macOS 10.14, *)) {
++        const auto status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
++        return nativeStatusToQtStatus(status);
++    }
++    return Qt::PermissionStatus::Granted;
+ }
+ 
+ - (QStringList)usageDescriptionsFor:(QPermission)permission
+@@ -30,12 +33,18 @@ - (QStringList)usageDescriptionsFor:(QPermission)permission
+ @implementation QDarwinCameraPermissionHandler (Request)
+ - (void)requestPermission:(QPermission)permission withCallback:(PermissionCallback)callback
+ {
+-    [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted)
+-    {
+-        Q_UNUSED(granted); // We use status instead
+-        const auto status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
+-        callback(nativeStatusToQtStatus(status));
+-    }];
++    if (@available(macOS 10.14, *)) {
++        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted)
++        {
++            Q_UNUSED(granted); // We use status instead
++            if (@available(macOS 10.14, *)) {
++                const auto status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
++                callback(nativeStatusToQtStatus(status));
++            }
++        }];
++    } else {
++        callback(Qt::PermissionStatus::Granted);
++    }
+ }
+ @end
+ 
+diff --git a/src/corelib/platform/darwin/qdarwinpermissionplugin_location.mm b/src/corelib/platform/darwin/qdarwinpermissionplugin_location.mm
+index c43cc1fe865..14c42174001 100644
+--- a/src/corelib/platform/darwin/qdarwinpermissionplugin_location.mm
++++ b/src/corelib/platform/darwin/qdarwinpermissionplugin_location.mm
+@@ -107,28 +107,33 @@ - (instancetype)init
+ 
+ - (CLAuthorizationStatus)authorizationStatus
+ {
+-    if (self.manager)
+-        return self.manager.authorizationStatus;
++    if (@available(macOS 11.0, *)) {
++        if (self.manager)
++            return self.manager.authorizationStatus;
++    }
+ 
+     return QT_IGNORE_DEPRECATIONS(CLLocationManager.authorizationStatus);
+ }
+ 
+ - (Qt::PermissionStatus)accuracyAuthorization:(QLocationPermission)permission
+ {
+-    auto status = self.manager.accuracyAuthorization;
++    if (@available(macOS 11.0, *)) {
++        auto status = self.manager.accuracyAuthorization;
+ 
+-    switch (status) {
+-    case CLAccuracyAuthorizationFullAccuracy:
+-        return Qt::PermissionStatus::Granted;
+-    case CLAccuracyAuthorizationReducedAccuracy:
+-        if (permission.accuracy() == QLocationPermission::Approximate)
++        switch (status) {
++        case CLAccuracyAuthorizationFullAccuracy:
+             return Qt::PermissionStatus::Granted;
+-        else
+-            return Qt::PermissionStatus::Denied;
+-    }
++        case CLAccuracyAuthorizationReducedAccuracy:
++            if (permission.accuracy() == QLocationPermission::Approximate)
++                return Qt::PermissionStatus::Granted;
++            else
++                return Qt::PermissionStatus::Denied;
++        }
+ 
+-    qCWarning(lcPermissions) << "Unknown accuracy status" << status << "detected in" << self;
+-    return Qt::PermissionStatus::Denied;
++        qCWarning(lcPermissions) << "Unknown accuracy status" << status << "detected in" << self;
++        return Qt::PermissionStatus::Denied;
++    }
++    return Qt::PermissionStatus::Granted;
+ }
+ 
+ - (QStringList)usageDescriptionsFor:(QPermission)permission
+@@ -173,13 +178,15 @@ - (void)requestQueuedPermission
+     const auto locationPermission = *permission.value<QLocationPermission>();
+     switch (locationPermission.availability()) {
+     case QLocationPermission::WhenInUse:
+-        // The documentation specifies that requestWhenInUseAuthorization can
+-        // only be called when the current authorization status is undetermined.
+-        switch ([self authorizationStatus]) {
+-        case kCLAuthorizationStatusNotDetermined:
+-            [self.manager requestWhenInUseAuthorization];
+-            break;
+-        default:
++        if (@available(macOS 10.15, *)) {
++            switch ([self authorizationStatus]) {
++            case kCLAuthorizationStatusNotDetermined:
++                [self.manager requestWhenInUseAuthorization];
++                break;
++            default:
++                [self deliverResult];
++            }
++        } else {
+             [self deliverResult];
+         }
+         break;
+@@ -187,26 +194,22 @@ - (void)requestQueuedPermission
+ #if defined(Q_OS_VISIONOS)
+         [self deliverResult]; // Not supported
+ #else
+-        // The documentation specifies that requestAlwaysAuthorization can only
+-        // be called when the current authorization status is either undetermined,
+-        // or authorized when in use.
+-        switch ([self authorizationStatus]) {
+-        case kCLAuthorizationStatusNotDetermined:
+-            [self.manager requestAlwaysAuthorization];
+-            break;
++        if (@available(macOS 10.15, *)) {
++            switch ([self authorizationStatus]) {
++            case kCLAuthorizationStatusNotDetermined:
++                [self.manager requestAlwaysAuthorization];
++                break;
+ #ifdef Q_OS_IOS
+-        case kCLAuthorizationStatusAuthorizedWhenInUse:
+-            // Unfortunately when asking for AlwaysAuthorization when in
+-            // the WhenInUse state, to "upgrade" the permission, the iOS
+-            // location system will not give us a callback if the user
+-            // denies the request, leaving us hanging without a way to
+-            // respond to the permission request.
+-            qCWarning(lcLocationPermission) << "QLocationPermission::WhenInUse"
+-                << "can not be upgraded to QLocationPermission::Always on iOS."
+-                << "Please request QLocationPermission::Always directly.";
+-            Q_FALLTHROUGH();
++            case kCLAuthorizationStatusAuthorizedWhenInUse:
++                qCWarning(lcLocationPermission) << "QLocationPermission::WhenInUse"
++                    << "can not be upgraded to QLocationPermission::Always on iOS."
++                    << "Please request QLocationPermission::Always directly.";
++                Q_FALLTHROUGH();
+ #endif
+-        default:
++            default:
++                [self deliverResult];
++            }
++        } else {
+             [self deliverResult];
+         }
+ #endif
+diff --git a/src/corelib/platform/darwin/qdarwinpermissionplugin_microphone.mm b/src/corelib/platform/darwin/qdarwinpermissionplugin_microphone.mm
+index 5dc434309df..d6d69186d10 100644
+--- a/src/corelib/platform/darwin/qdarwinpermissionplugin_microphone.mm
++++ b/src/corelib/platform/darwin/qdarwinpermissionplugin_microphone.mm
+@@ -12,8 +12,11 @@
+ @implementation QDarwinMicrophonePermissionHandler
+ - (Qt::PermissionStatus)checkPermission:(QPermission)permission
+ {
+-    const auto status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
+-    return nativeStatusToQtStatus(status);
++    if (@available(macOS 10.14, *)) {
++        const auto status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
++        return nativeStatusToQtStatus(status);
++    }
++    return Qt::PermissionStatus::Granted;
+ }
+ 
+ - (QStringList)usageDescriptionsFor:(QPermission)permission
+@@ -30,12 +33,18 @@ - (QStringList)usageDescriptionsFor:(QPermission)permission
+ @implementation QDarwinMicrophonePermissionHandler (Request)
+ - (void)requestPermission:(QPermission)permission withCallback:(PermissionCallback)callback
+ {
+-    [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted)
+-    {
+-        Q_UNUSED(granted); // We use status instead
+-        const auto status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
+-        callback(nativeStatusToQtStatus(status));
+-    }];
++    if (@available(macOS 10.14, *)) {
++        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted)
++        {
++            Q_UNUSED(granted); // We use status instead
++            if (@available(macOS 10.14, *)) {
++                const auto status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
++                callback(nativeStatusToQtStatus(status));
++            }
++        }];
++    } else {
++        callback(Qt::PermissionStatus::Granted);
++    }
+ }
+ @end
+ 
