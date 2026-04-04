@@ -1,5 +1,5 @@
 diff --git a/src/gui/platform/darwin/qappleiconengine.mm b/src/gui/platform/darwin/qappleiconengine.mm
-index 775b4716..3fe28e01 100644
+index 925135e9..0d8f0a5c 100644
 --- a/src/gui/platform/darwin/qappleiconengine.mm
 +++ b/src/gui/platform/darwin/qappleiconengine.mm
 @@ -24,6 +24,15 @@
@@ -28,7 +28,7 @@ index 775b4716..3fe28e01 100644
      auto *config = [NSImageSymbolConfiguration configurationWithPointSize:48
                                                 weight:NSFontWeightRegular
                                                 scale:NSImageSymbolScaleLarge];
-
+ 
 -    // Apply tint color first, which switches the configuration to palette mode
 -    config = [config configurationByApplyingConfiguration:
 -        [NSImageSymbolConfiguration configurationWithPaletteColors:@[
@@ -55,6 +55,15 @@ index 775b4716..3fe28e01 100644
 +                    blue:color.blueF() alpha:color.alphaF()]
 +            ]]];
 +    }
-
+ 
      return [image imageWithSymbolConfiguration:config];
  }
+@@ -464,7 +480,7 @@
+     [image drawInRect:iconRect fromRect:sourceRect operation:NSCompositingOperationSourceOver
+         fraction:1.0 respectFlipped:YES hints:@{
+         NSImageHintUserInterfaceLayoutDirection: painter->layoutDirection() == Qt::RightToLeft ?
+-            @(NSUserInterfaceLayoutDirectionRightToLeft) : @(NSUserInterfaceLayoutDirectionLeftToRight)
++            [NSNumber numberWithInteger:NSUserInterfaceLayoutDirectionRightToLeft] : [NSNumber numberWithInteger:NSUserInterfaceLayoutDirectionLeftToRight]
+     }];
+     [NSGraphicsContext restoreGraphicsState];
+ #elif defined(QT_PLATFORM_UIKIT)

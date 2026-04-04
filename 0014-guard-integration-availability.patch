@@ -1,9 +1,10 @@
 diff --git a/src/plugins/platforms/cocoa/qcocoaintegration.mm b/src/plugins/platforms/cocoa/qcocoaintegration.mm
-index 1ed73b56..68674452 100644
+index ab8863834f2..a15d79840b8 100644
 --- a/src/plugins/platforms/cocoa/qcocoaintegration.mm
 +++ b/src/plugins/platforms/cocoa/qcocoaintegration.mm
-@@ -453,13 +453,16 @@ QSurfaceFormat format() const override
-
+@@ -485,13 +485,16 @@ QSurfaceFormat format() const override
+         return;
+ 
      static bool hasDefaultApplicationIcon = [](){
 -        NSImage *genericApplicationIcon = [NSWorkspace.sharedWorkspace
 -            iconForContentType:UTTypeApplicationBundle];
@@ -23,5 +24,5 @@ index 1ed73b56..68674452 100644
 +        }
 +        return true;
      }();
-
+ 
      // Don't let the window icon override an explicit application icon set in the Info.plist

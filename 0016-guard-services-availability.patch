@@ -1,5 +1,5 @@
 diff --git a/src/plugins/platforms/cocoa/qcocoaservices.mm b/src/plugins/platforms/cocoa/qcocoaservices.mm
-index 87212c26..7008abe3 100644
+index 67d1dee02bd..ed004457df6 100644
 --- a/src/plugins/platforms/cocoa/qcocoaservices.mm
 +++ b/src/plugins/platforms/cocoa/qcocoaservices.mm
 @@ -43,30 +43,43 @@
@@ -16,7 +16,7 @@ index 87212c26..7008abe3 100644
 +        if (@available(macOS 10.15, *))
 +            [m_colorSampler release];
 +    }
-
+ 
      void pickColor() override
      {
 -        [m_colorSampler showSamplerWithSelectionHandler:^(NSColor *selectedColor) {
@@ -32,8 +32,8 @@ index 87212c26..7008abe3 100644
 -    NSColorSampler *m_colorSampler = nullptr;
 +    NSColorSampler *m_colorSampler API_AVAILABLE(macos(10.15)) = nullptr;
  };
-
-
+ 
+ 
  QPlatformServiceColorPicker *QCocoaServices::colorPicker(QWindow *parent)
  {
      Q_UNUSED(parent);
@@ -42,7 +42,7 @@ index 87212c26..7008abe3 100644
 +        return new QCocoaColorPicker;
 +    return nullptr;
  }
-
+ 
  bool QCocoaServices::hasCapability(Capability capability) const
  {
      switch (capability) {
