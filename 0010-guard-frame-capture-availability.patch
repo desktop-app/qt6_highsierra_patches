@@ -1,9 +1,9 @@
 diff --git a/src/gui/util/qgraphicsframecapturemetal.mm b/src/gui/util/qgraphicsframecapturemetal.mm
-index 259872e4..7b963649 100644
+index 259872e485a..7b963649e42 100644
 --- a/src/gui/util/qgraphicsframecapturemetal.mm
 +++ b/src/gui/util/qgraphicsframecapturemetal.mm
 @@ -21,9 +21,10 @@
-
+ 
  QGraphicsFrameCaptureMetal::QGraphicsFrameCaptureMetal()
  {
 -    qputenv("METAL_CAPTURE_ENABLED", QByteArrayLiteral("1"));
@@ -14,12 +14,12 @@ index 259872e4..7b963649 100644
 +        m_captureDescriptor = [MTLCaptureDescriptor new];
 +    }
  }
-
+ 
  QGraphicsFrameCaptureMetal::~QGraphicsFrameCaptureMetal()
 @@ -42,6 +43,11 @@
      if (!rhi)
          return;
-
+ 
 +    if (@available(macOS 10.15, iOS 13.0, *)) { } else {
 +        m_initialized = false;
 +        return;
@@ -27,11 +27,11 @@ index 259872e4..7b963649 100644
 +
      QRhi::Implementation backend = rhi->backend();
      const QRhiNativeHandles *nh = rhi->nativeHandles();
-
+ 
 @@ -90,11 +96,13 @@
          return;
      }
-
+ 
 -    updateCaptureFileName();
 -    NSError *error;
 -    if (![m_captureManager startCaptureWithDescriptor:m_captureDescriptor error:&error]) {
@@ -46,20 +46,20 @@ index 259872e4..7b963649 100644
 +        }
      }
  }
-
+ 
 @@ -128,7 +136,9 @@
          return false;
      }
-
+ 
 -    return [m_captureManager isCapturing];
 +    if (@available(macOS 10.15, iOS 13.0, *))
 +        return [m_captureManager isCapturing];
 +    return false;
  }
-
+ 
  void QGraphicsFrameCaptureMetal::openCapture()
 @@ -158,15 +168,15 @@
-
+ 
  void QGraphicsFrameCaptureMetal::updateCaptureFileName()
  {
 -    m_traceURL = QUrl::fromLocalFile(m_capturePath + u"/" + m_capturePrefix + u"_"
@@ -81,5 +81,5 @@ index 259872e4..7b963649 100644
 +        m_captureDescriptor.outputURL = m_traceURL;
 +    }
  }
-
+ 
  QT_END_NAMESPACE

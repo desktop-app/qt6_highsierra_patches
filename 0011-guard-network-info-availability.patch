@@ -1,0 +1,56 @@
+diff --git a/src/plugins/networkinformation/apple/qapplenetworkinformationbackend.mm b/src/plugins/networkinformation/apple/qapplenetworkinformationbackend.mm
+index a9e5b6934b8..6c9741f0ee2 100644
+--- a/src/plugins/networkinformation/apple/qapplenetworkinformationbackend.mm
++++ b/src/plugins/networkinformation/apple/qapplenetworkinformationbackend.mm
+@@ -126,7 +126,9 @@ static QString backendName()
+     {
+         if ((requiredFeatures & featuresSupported()) != requiredFeatures)
+             return nullptr;
+-        return new QAppleNetworkInformationBackend();
++        if (@available(macOS 10.14, iOS 12.0, *))
++            return new QAppleNetworkInformationBackend();
++        return nullptr;
+     }
+ 
+ private:
+@@ -179,6 +181,10 @@ static QString backendName()
+ 
+ bool QAppleNetworkInformationBackend::startMonitoring()
+ {
++    if (@available(macOS 10.14, iOS 12.0, *)) { } else {
++        return false;
++    }
++
+     Q_ASSERT(!monitor && !callbackData);
+ 
+     monitor = nw_path_monitor_create();
+@@ -218,11 +224,15 @@ static QString backendName()
+ 
+ void QAppleNetworkInformationBackend::stopMonitoring()
+ {
++    if (@available(macOS 10.14, iOS 12.0, *)) { } else {
++        return;
++    }
++
+     Q_ASSERT(callbackData && monitor);
+     {
+-        const QMutexLocker lock(&callbackData->monitorMutex); // Release the lock _before_ cancelling.
+-        callbackData->backend = nullptr; // This will prevent updateState calls from the queue.
+-        callbackData = nullptr; // To be deleted in the cancellation callback.
++        const QMutexLocker lock(&callbackData->monitorMutex);
++        callbackData->backend = nullptr;
++        callbackData = nullptr;
+     }
+     nw_path_monitor_cancel(monitor);
+     nw_release(monitor);
+@@ -231,6 +241,10 @@ static QString backendName()
+ 
+ void QAppleNetworkInformationBackend::updateState(nw_path_t state)
+ {
++    if (@available(macOS 10.14, iOS 12.0, *)) { } else {
++        return;
++    }
++
+     Q_ASSERT(callbackData);
+ 
+     // Lock is acquired in the callback (which is calling us).

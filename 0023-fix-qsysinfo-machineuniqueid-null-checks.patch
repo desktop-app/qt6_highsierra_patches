@@ -1,17 +1,20 @@
 diff --git a/src/corelib/global/qsysinfo.cpp b/src/corelib/global/qsysinfo.cpp
-index e5bba170e..0000000 100644
+index 7d210da3a11..88c047c901c 100644
 --- a/src/corelib/global/qsysinfo.cpp
 +++ b/src/corelib/global/qsysinfo.cpp
-@@ -1026,12 +1026,17 @@
+@@ -1027,9 +1027,19 @@ enum {
  QByteArray QSysInfo::machineUniqueId()
  {
  #if defined(Q_OS_DARWIN) && __has_include(<IOKit/IOKitLib.h>)
 -    char uuid[UuidStringLen + 1];
+-    io_service_t service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"));
 +    char uuid[UuidStringLen + 1] = {};
-     QT_WARNING_PUSH
-     QT_WARNING_DISABLE_DEPRECATED
-     io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOPlatformExpertDevice"));
-     QT_WARNING_POP
++    mach_port_t mainPort = 0;
++    if (__builtin_available(macOS 12.0, *))
++        mainPort = kIOMainPortDefault;
++    else
++        mainPort = kIOMasterPortDefault;
++    io_service_t service = IOServiceGetMatchingService(mainPort, IOServiceMatching("IOPlatformExpertDevice"));
 +    if (!service)
 +        return QByteArray();
      QCFString stringRef = (CFStringRef)IORegistryEntryCreateCFProperty(service, CFSTR(kIOPlatformUUIDKey), kCFAllocatorDefault, 0);

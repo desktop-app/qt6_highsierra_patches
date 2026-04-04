@@ -1,11 +1,11 @@
 diff --git a/src/gui/rhi/qrhimetal.mm b/src/gui/rhi/qrhimetal.mm
-index 4c618d29..1fbb094e 100644
+index 46b86935144..04558eae5c5 100644
 --- a/src/gui/rhi/qrhimetal.mm
 +++ b/src/gui/rhi/qrhimetal.mm
-@@ -536,18 +536,21 @@ bool QRhiMetalData::setupBinaryArchive(NSURL *sourceFileUrl)
+@@ -542,18 +542,21 @@ inline Int aligned(Int v, Int byteAlign)
      return false;
  #endif
-
+ 
 -    [binArch release];
 -    MTLBinaryArchiveDescriptor *binArchDesc = [MTLBinaryArchiveDescriptor new];
 -    binArchDesc.url = sourceFileUrl;
@@ -33,11 +33,11 @@ index 4c618d29..1fbb094e 100644
 -    return true;
 +    return false;
  }
-
+ 
  bool QRhiMetal::create(QRhi::Flags flags)
-@@ -579,19 +582,21 @@ bool QRhiMetal::create(QRhi::Flags flags)
+@@ -579,19 +582,21 @@ inline Int aligned(Int v, Int byteAlign)
      // apparently change when the system is rebooted.
-
+ 
  #ifdef Q_OS_MACOS
 -    const MTLDeviceLocation deviceLocation = [d->dev location];
 -    switch (deviceLocation) {
@@ -70,10 +70,10 @@ index 4c618d29..1fbb094e 100644
      }
  #else
      driverInfoStruct.deviceType = QRhiDriverInfo::IntegratedDevice;
-@@ -606,18 +611,21 @@ bool QRhiMetal::create(QRhi::Flags flags)
+@@ -606,18 +611,21 @@ inline Int aligned(Int v, Int byteAlign)
      else
          d->cmdQueue = [d->dev newCommandQueue];
-
+ 
 -    d->captureMgr = [MTLCaptureManager sharedCaptureManager];
 -    // Have a custom capture scope as well which then shows up in XCode as
 -    // an option when capturing, and becomes especially useful when having
@@ -90,7 +90,7 @@ index 4c618d29..1fbb094e 100644
 +        d->captureMgr = nil;
 +        d->captureScope = nil;
 +    }
-
+ 
  #if defined(Q_OS_MACOS) || defined(Q_OS_VISIONOS)
      caps.maxTextureSize = 16384;
      caps.baseVertexAndInstance = true;
@@ -100,10 +100,10 @@ index 4c618d29..1fbb094e 100644
      caps.maxThreadGroupSize = 1024;
      caps.multiView = true;
  #elif defined(Q_OS_TVOS)
-@@ -651,8 +659,10 @@ bool QRhiMetal::create(QRhi::Flags flags)
+@@ -651,12 +659,14 @@ inline Int aligned(Int v, Int byteAlign)
              caps.supportedSampleCounts.append(sampleCount);
      }
-
+ 
 -    caps.shadingRateMap = [d->dev supportsRasterizationRateMapWithLayerCount: 1];
 -    if (caps.shadingRateMap && caps.multiView)
 -        caps.shadingRateMap = [d->dev supportsRasterizationRateMapWithLayerCount: 2];
@@ -112,13 +112,18 @@ index 4c618d29..1fbb094e 100644
 +        if (caps.shadingRateMap && caps.multiView)
 +            caps.shadingRateMap = [d->dev supportsRasterizationRateMapWithLayerCount: 2];
 +    }
-
+ 
+-    // QTBUG-144444: setDepthClipMode is not available on the Simulator
+-    caps.depthClamp = [d->dev supportsFamily:MTLGPUFamilyApple3];
++    if (@available(macOS 10.15, iOS 13.0, *))
++        caps.depthClamp = [d->dev supportsFamily:MTLGPUFamilyApple3];
+ 
      if (rhiFlags.testFlag(QRhi::EnablePipelineCacheDataSave))
          d->setupBinaryArchive();
-@@ -970,6 +980,10 @@ QByteArray QRhiMetal::pipelineCacheData()
+@@ -984,6 +994,10 @@ inline Int aligned(Int v, Int byteAlign)
      if (!d->binArch || !rhiFlags.testFlag(QRhi::EnablePipelineCacheDataSave))
          return data;
-
+ 
 +    if (@available(macOS 11.0, iOS 14.0, *)) { } else {
 +        return data;
 +    }
@@ -126,7 +131,15 @@ index 4c618d29..1fbb094e 100644
      QTemporaryFile tmp;
      if (!tmp.open()) {
          qCDebug(QRHI_LOG_INFO, "pipelineCacheData: Failed to create temporary file for Metal");
-@@ -1875,10 +1889,12 @@ static inline void rebindShaderResources(QMetalCommandBuffer *cbD, int resourceS
+@@ -996,7 +1010,6 @@ inline Int aligned(Int v, Int byteAlign)
+     NSError *err = nil;
+     if (![d->binArch serializeToURL: url error: &err]) {
+         const QString msg = QString::fromNSString(err.localizedDescription);
+-        // Some of these "errors" are not actual errors. (think of "Nothing to serialize")
+         qCDebug(QRHI_LOG_INFO, "Failed to serialize MTLBinaryArchive: %s", qPrintable(msg));
+         return data;
+     }
+@@ -1898,10 +1911,12 @@ static inline void rebindShaderResources(QMetalCommandBuffer *cbD, int resourceS
      // This is specifically needed for visionOS.
      if (cbD->currentTarget->resourceType() == QRhiResource::TextureRenderTarget) {
          QRhiTextureRenderTarget *rt = static_cast<QRhiTextureRenderTarget *>(cbD->currentTarget);
@@ -143,51 +156,55 @@ index 4c618d29..1fbb094e 100644
              }
          }
      }
-@@ -2442,7 +2458,7 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
-
+@@ -2465,7 +2480,8 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
+ 
      __block int thisFrameSlot = currentFrameSlot;
      [commandBuffer addCompletedHandler: ^(id<MTLCommandBuffer> cb) {
 -        swapChainD->d->lastGpuTime[thisFrameSlot] += cb.GPUEndTime - cb.GPUStartTime;
-+        swapChainD->d->lastGpuTime[thisFrameSlot] += ([&]() -> double { if (@available(macOS 10.15, *)) return cb.GPUEndTime - cb.GPUStartTime; return 0; }());
++        if (@available(macOS 10.15, *))
++            swapChainD->d->lastGpuTime[thisFrameSlot] += cb.GPUEndTime - cb.GPUStartTime;
          dispatch_semaphore_signal(swapChainD->d->sem[thisFrameSlot]);
      }];
-
-@@ -2566,7 +2582,7 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
+ 
+@@ -2589,7 +2605,8 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
      // offscreen frames wait for completion, unlike swapchain ones
      [cb waitUntilCompleted];
-
+ 
 -    d->ofr.lastGpuTime += cb.GPUEndTime - cb.GPUStartTime;
-+    d->ofr.lastGpuTime += ([&]() -> double { if (@available(macOS 10.15, *)) return cb.GPUEndTime - cb.GPUStartTime; return 0; }());
-
++    if (@available(macOS 10.15, *))
++        d->ofr.lastGpuTime += cb.GPUEndTime - cb.GPUStartTime;
+ 
      finishActiveReadbacks(true);
-
-@@ -2608,10 +2624,10 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
-
+ 
+@@ -2631,10 +2648,12 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
+ 
      if (inFrame) {
          if (d->ofr.active) {
 -            d->ofr.lastGpuTime += cb.GPUEndTime - cb.GPUStartTime;
-+            d->ofr.lastGpuTime += ([&]() -> double { if (@available(macOS 10.15, *)) return cb.GPUEndTime - cb.GPUStartTime; return 0; }());
++            if (@available(macOS 10.15, *))
++                d->ofr.lastGpuTime += cb.GPUEndTime - cb.GPUStartTime;
              d->ofr.cbWrapper.d->cb = d->newCommandBuffer();
          } else {
 -            swapChainD->d->lastGpuTime[currentFrameSlot] += cb.GPUEndTime - cb.GPUStartTime;
-+            swapChainD->d->lastGpuTime[currentFrameSlot] += ([&]() -> double { if (@available(macOS 10.15, *)) return cb.GPUEndTime - cb.GPUStartTime; return 0; }());
++            if (@available(macOS 10.15, *))
++                swapChainD->d->lastGpuTime[currentFrameSlot] += cb.GPUEndTime - cb.GPUStartTime;
              swapChainD->cbWrapper.d->cb = d->newCommandBuffer();
          }
      }
-@@ -2649,8 +2665,10 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
+@@ -2671,8 +2690,10 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
          rp.stencilAttachment.clearStencil = depthStencilClearValue.stencilClearValue();
      }
-
+ 
 -    if (shadingRateMap)
 -        rp.rasterizationRateMap = QRHI_RES(QMetalShadingRateMap, shadingRateMap)->d->rateMap;
 +    if (@available(macOS 12.0, iOS 15.0, *)) {
 +        if (shadingRateMap)
 +            rp.rasterizationRateMap = QRHI_RES(QMetalShadingRateMap, shadingRateMap)->d->rateMap;
 +    }
-
+ 
      return rp;
  }
-@@ -3766,9 +3784,15 @@ static inline MTLPixelFormat toMetalTextureFormat(QRhiTexture::Format format, QR
+@@ -3788,9 +3809,15 @@ static inline MTLPixelFormat toMetalTextureFormat(QRhiTexture::Format format, QR
      switch (m_type) {
      case DepthStencil:
  #ifdef Q_OS_MACOS
@@ -206,7 +223,7 @@ index 4c618d29..1fbb094e 100644
          } else {
              desc.storageMode = MTLStorageModePrivate;
              d->format = rhiD->d->dev.depth24Stencil8PixelFormatSupported
-@@ -3946,7 +3970,10 @@ static inline MTLPixelFormat toMetalTextureFormat(QRhiTexture::Format format, QR
+@@ -3968,7 +3995,10 @@ static inline MTLPixelFormat toMetalTextureFormat(QRhiTexture::Format format, QR
      } else if (is1D) {
          desc.textureType = isArray ? MTLTextureType1DArray : MTLTextureType1D;
      } else if (isArray) {
@@ -218,8 +235,8 @@ index 4c618d29..1fbb094e 100644
      } else {
          desc.textureType = samples > 1 ? MTLTextureType2DMultisample : MTLTextureType2D;
      }
-@@ -5096,19 +5123,23 @@ static inline MTLLanguageVersion toMetalLanguageVersion(const QShaderVersion &ve
-
+@@ -5121,19 +5151,23 @@ static inline MTLLanguageVersion toMetalLanguageVersion(const QShaderVersion &ve
+ 
  void QRhiMetalData::trySeedingRenderPipelineFromBinaryArchive(MTLRenderPipelineDescriptor *rpDesc)
  {
 -    if (binArch)  {
@@ -232,7 +249,7 @@ index 4c618d29..1fbb094e 100644
 +        }
      }
  }
-
+ 
  void QRhiMetalData::addRenderPipelineToBinaryArchive(MTLRenderPipelineDescriptor *rpDesc)
  {
 -    if (binArch) {
@@ -250,8 +267,8 @@ index 4c618d29..1fbb094e 100644
          }
      }
  }
-@@ -6078,19 +6109,23 @@ static inline bool matches(const QShaderDescription::InOutVariable &a, const QSh
-
+@@ -6103,19 +6137,23 @@ static inline bool matches(const QShaderDescription::InOutVariable &a, const QSh
+ 
  void QRhiMetalData::trySeedingComputePipelineFromBinaryArchive(MTLComputePipelineDescriptor *cpDesc)
  {
 -    if (binArch) {
@@ -264,7 +281,7 @@ index 4c618d29..1fbb094e 100644
 +        }
      }
  }
-
+ 
  void QRhiMetalData::addComputePipelineToBinaryArchive(MTLComputePipelineDescriptor *cpDesc)
  {
 -    if (binArch) {
@@ -282,10 +299,15 @@ index 4c618d29..1fbb094e 100644
          }
      }
  }
-@@ -6602,7 +6637,7 @@ static inline bool matches(const QShaderDescription::InOutVariable &a, const QSh
+@@ -6626,7 +6664,10 @@ static inline bool matches(const QShaderDescription::InOutVariable &a, const QSh
+         NSView *view = reinterpret_cast<NSView *>(m_window->winId());
+         NSScreen *screen = view.window.screen;
          info.limits.colorComponentValue.maxColorComponentValue = screen.maximumExtendedDynamicRangeColorComponentValue;
 -        info.limits.colorComponentValue.maxPotentialColorComponentValue = screen.maximumPotentialExtendedDynamicRangeColorComponentValue;
-+        info.limits.colorComponentValue.maxPotentialColorComponentValue = ([&]() -> CGFloat { if (@available(macOS 10.15, *)) return screen.maximumPotentialExtendedDynamicRangeColorComponentValue; return 1.0; }());
++        if (@available(macOS 10.15, *))
++            info.limits.colorComponentValue.maxPotentialColorComponentValue = screen.maximumPotentialExtendedDynamicRangeColorComponentValue;
++        else
++            info.limits.colorComponentValue.maxPotentialColorComponentValue = 1.0;
  #elif defined(Q_OS_IOS)
          if (@available(iOS 16.0, *)) {
              UIView *view = reinterpret_cast<UIView *>(m_window->winId());
