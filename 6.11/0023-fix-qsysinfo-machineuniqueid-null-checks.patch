@@ -1,0 +1,20 @@
+diff --git a/src/corelib/global/qsysinfo.cpp b/src/corelib/global/qsysinfo.cpp
+index 78e50cd8580..bb61b3b4dd0 100644
+--- a/src/corelib/global/qsysinfo.cpp
++++ b/src/corelib/global/qsysinfo.cpp
+@@ -1026,9 +1026,14 @@ enum {
+ QByteArray QSysInfo::machineUniqueId()
+ {
+ #if defined(Q_OS_DARWIN) && __has_include(<IOKit/IOKitLib.h>)
+-    char uuid[UuidStringLen + 1];
++    char uuid[UuidStringLen + 1] = {};
+     io_service_t service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"));
++    if (!service)
++        return QByteArray();
+     QCFString stringRef = (CFStringRef)IORegistryEntryCreateCFProperty(service, CFSTR(kIOPlatformUUIDKey), kCFAllocatorDefault, 0);
++    IOObjectRelease(service);
++    if (!stringRef)
++        return QByteArray();
+     CFStringGetCString(stringRef, uuid, sizeof(uuid), kCFStringEncodingMacRoman);
+     return QByteArray(uuid);
+ #elif defined(Q_OS_BSD4) && defined(KERN_HOSTUUID)
