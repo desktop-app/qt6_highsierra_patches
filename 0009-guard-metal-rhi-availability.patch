@@ -120,25 +120,102 @@ index 46b86935144..04558eae5c5 100644
  
      if (rhiFlags.testFlag(QRhi::EnablePipelineCacheDataSave))
          d->setupBinaryArchive();
-@@ -984,6 +994,10 @@ inline Int aligned(Int v, Int byteAlign)
-     if (!d->binArch || !rhiFlags.testFlag(QRhi::EnablePipelineCacheDataSave))
+@@ -981,52 +991,57 @@ inline Int aligned(Int v, Int byteAlign)
+ {
+     Q_STATIC_ASSERT(sizeof(QMetalPipelineCacheDataHeader) == 256);
+     QByteArray data;
+-    if (!d->binArch || !rhiFlags.testFlag(QRhi::EnablePipelineCacheDataSave))
++    if (!rhiFlags.testFlag(QRhi::EnablePipelineCacheDataSave))
          return data;
  
-+    if (@available(macOS 11.0, iOS 14.0, *)) { } else {
-+        return data;
-+    }
-+
-     QTemporaryFile tmp;
-     if (!tmp.open()) {
-         qCDebug(QRHI_LOG_INFO, "pipelineCacheData: Failed to create temporary file for Metal");
-@@ -996,7 +1010,6 @@ inline Int aligned(Int v, Int byteAlign)
-     NSError *err = nil;
-     if (![d->binArch serializeToURL: url error: &err]) {
-         const QString msg = QString::fromNSString(err.localizedDescription);
+-    QTemporaryFile tmp;
+-    if (!tmp.open()) {
+-        qCDebug(QRHI_LOG_INFO, "pipelineCacheData: Failed to create temporary file for Metal");
+-        return data;
+-    }
+-    tmp.close(); // the file exists until the tmp dtor runs
++    if (@available(macOS 11.0, iOS 14.0, *)) {
++        if (!d->binArch)
++            return data;
+ 
+-    const QString fn = QFileInfo(tmp.fileName()).absoluteFilePath();
+-    NSURL *url = QUrl::fromLocalFile(fn).toNSURL();
+-    NSError *err = nil;
+-    if (![d->binArch serializeToURL: url error: &err]) {
+-        const QString msg = QString::fromNSString(err.localizedDescription);
 -        // Some of these "errors" are not actual errors. (think of "Nothing to serialize")
-         qCDebug(QRHI_LOG_INFO, "Failed to serialize MTLBinaryArchive: %s", qPrintable(msg));
-         return data;
-     }
+-        qCDebug(QRHI_LOG_INFO, "Failed to serialize MTLBinaryArchive: %s", qPrintable(msg));
+-        return data;
+-    }
++        QTemporaryFile tmp;
++        if (!tmp.open()) {
++            qCDebug(QRHI_LOG_INFO, "pipelineCacheData: Failed to create temporary file for Metal");
++            return data;
++        }
++        tmp.close(); // the file exists until the tmp dtor runs
+ 
+-    QFile f(fn);
+-    if (!f.open(QIODevice::ReadOnly)) {
+-        qCDebug(QRHI_LOG_INFO, "pipelineCacheData: Failed to reopen temporary file");
+-        return data;
+-    }
+-    const QByteArray blob = f.readAll();
+-    f.close();
++        const QString fn = QFileInfo(tmp.fileName()).absoluteFilePath();
++        NSURL *url = QUrl::fromLocalFile(fn).toNSURL();
++        NSError *err = nil;
++        if (![d->binArch serializeToURL: url error: &err]) {
++            const QString msg = QString::fromNSString(err.localizedDescription);
++            // Some of these "errors" are not actual errors. (think of "Nothing to serialize")
++            qCDebug(QRHI_LOG_INFO, "Failed to serialize MTLBinaryArchive: %s", qPrintable(msg));
++            return data;
++        }
+ 
+-    const size_t headerSize = sizeof(QMetalPipelineCacheDataHeader);
+-    const quint32 dataSize = quint32(blob.size());
++        QFile f(fn);
++        if (!f.open(QIODevice::ReadOnly)) {
++            qCDebug(QRHI_LOG_INFO, "pipelineCacheData: Failed to reopen temporary file");
++            return data;
++        }
++        const QByteArray blob = f.readAll();
++        f.close();
+ 
+-    data.resize(headerSize + dataSize);
++        const size_t headerSize = sizeof(QMetalPipelineCacheDataHeader);
++        const quint32 dataSize = quint32(blob.size());
+ 
+-    QMetalPipelineCacheDataHeader header = {};
+-    header.rhiId = pipelineCacheRhiId();
+-    header.arch = quint32(sizeof(void*));
+-    header.dataSize = quint32(dataSize);
+-    header.osMajor = osMajor;
+-    header.osMinor = osMinor;
+-    const size_t driverStrLen = qMin(sizeof(header.driver) - 1, size_t(driverInfoStruct.deviceName.length()));
+-    if (driverStrLen)
+-        memcpy(header.driver, driverInfoStruct.deviceName.constData(), driverStrLen);
+-    header.driver[driverStrLen] = '\0';
++        data.resize(headerSize + dataSize);
+ 
+-    memcpy(data.data(), &header, headerSize);
+-    memcpy(data.data() + headerSize, blob.constData(), dataSize);
++        QMetalPipelineCacheDataHeader header = {};
++        header.rhiId = pipelineCacheRhiId();
++        header.arch = quint32(sizeof(void*));
++        header.dataSize = quint32(dataSize);
++        header.osMajor = osMajor;
++        header.osMinor = osMinor;
++        const size_t driverStrLen = qMin(sizeof(header.driver) - 1, size_t(driverInfoStruct.deviceName.length()));
++        if (driverStrLen)
++            memcpy(header.driver, driverInfoStruct.deviceName.constData(), driverStrLen);
++        header.driver[driverStrLen] = '\0';
++
++        memcpy(data.data(), &header, headerSize);
++        memcpy(data.data() + headerSize, blob.constData(), dataSize);
++    }
+     return data;
+ }
+ 
 @@ -1898,10 +1911,12 @@ static inline void rebindShaderResources(QMetalCommandBuffer *cbD, int resourceS
      // This is specifically needed for visionOS.
      if (cbD->currentTarget->resourceType() == QRhiResource::TextureRenderTarget) {
