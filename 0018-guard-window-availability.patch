@@ -1,11 +1,11 @@
 diff --git a/src/plugins/platforms/cocoa/qcocoawindow.mm b/src/plugins/platforms/cocoa/qcocoawindow.mm
-index f6481ea2b4c..0c2359554ed 100644
+index 63f8b08d6d4..59f17370327 100644
 --- a/src/plugins/platforms/cocoa/qcocoawindow.mm
 +++ b/src/plugins/platforms/cocoa/qcocoawindow.mm
 @@ -133,14 +133,14 @@ static void qRegisterNotificationCallbacks()
-
+ 
          setMask(QHighDpi::toNativeLocalRegion(window()->mask(), window()));
-
+ 
 -        m_safeAreaInsetsObserver = QMacKeyValueObserver(
 -            m_view, @"safeAreaInsets", [this] {
 -                // Defer to next runloop pass, so that any changes to the
@@ -22,7 +22,7 @@ index f6481ea2b4c..0c2359554ed 100644
 +                    }, Qt::QueuedConnection);
 +                }, NSKeyValueObservingOptionNew);
 +        }
-
+ 
      } else {
          // Pick up essential foreign window state
 @@ -317,6 +317,10 @@ a normal (not maximized or full screen) top-level window.
@@ -39,7 +39,7 @@ index f6481ea2b4c..0c2359554ed 100644
 @@ -324,33 +328,29 @@ a normal (not maximized or full screen) top-level window.
          m_view.safeAreaInsets.bottom
      };
-
+ 
 -    // The screen's safe area insets represent the distances from the screen's
 -    // edges at which content isn't obscured. The view's safe area margins do
 -    // not include the screen's insets automatically, so we need to manually
@@ -90,6 +90,6 @@ index f6481ea2b4c..0c2359554ed 100644
 +            qMin(screenRelativeViewBounds.bottom() - screenSafeArea.bottom(), screenInsets.bottom)
 +        };
 +    }
-
+ 
      return (screenSafeAreaMargins | viewSafeAreaMargins).toMargins();
  }

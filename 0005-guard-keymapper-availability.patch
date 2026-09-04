@@ -1,10 +1,10 @@
 diff --git a/src/gui/platform/darwin/qapplekeymapper.mm b/src/gui/platform/darwin/qapplekeymapper.mm
-index 49f7a8ff0cb..4332519fd9c 100644
+index f0fd48a46e5..c8380129ccb 100644
 --- a/src/gui/platform/darwin/qapplekeymapper.mm
 +++ b/src/gui/platform/darwin/qapplekeymapper.mm
-@@ -441,20 +441,22 @@ static int toKeyCode(const QChar &key, int virtualKey, int modifiers)
+@@ -454,20 +454,22 @@ static int toKeyCode(const QChar &key, int virtualKey, int modifiers)
              carbonUnicodeKey = QChar(unicodeString[0]);
-
+ 
          if (canMapCocoaEvent) {
 -            // Until we've verified that the Cocoa API works as expected
 -            // we first run the event through the Carbon APIs and then
@@ -38,4 +38,4 @@ index 49f7a8ff0cb..4332519fd9c 100644
 +                }
              }
          }
-
+ 

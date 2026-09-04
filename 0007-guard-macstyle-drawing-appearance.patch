@@ -1,5 +1,5 @@
 diff --git a/src/gui/platform/macos/qmacstyle_p.h b/src/gui/platform/macos/qmacstyle_p.h
-index bbfbc1a0..d43a347f 100644
+index bbfbc1a06e3..d43a347f9fe 100644
 --- a/src/gui/platform/macos/qmacstyle_p.h
 +++ b/src/gui/platform/macos/qmacstyle_p.h
 @@ -51,28 +51,43 @@ public:

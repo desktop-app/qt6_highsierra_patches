@@ -1,5 +1,5 @@
 diff --git a/src/plugins/platforms/cocoa/qcocoadrag.mm b/src/plugins/platforms/cocoa/qcocoadrag.mm
-index 80c1559f422..cddb5d77080 100644
+index 80c1559f422..4aa9bc884c1 100644
 --- a/src/plugins/platforms/cocoa/qcocoadrag.mm
 +++ b/src/plugins/platforms/cocoa/qcocoadrag.mm
 @@ -170,7 +170,7 @@

@@ -1,8 +1,8 @@
 diff --git a/src/gui/painting/qcoregraphics.mm b/src/gui/painting/qcoregraphics.mm
-index 819f3c8e5d2..8e3e127cafe 100644
+index 7df871b1d23..0c3bc1e54c7 100644
 --- a/src/gui/painting/qcoregraphics.mm
 +++ b/src/gui/painting/qcoregraphics.mm
-@@ -85,23 +85,33 @@
+@@ -83,23 +83,33 @@
          break;
      case QPixelFormat::UnsignedShort:
          bitmapInfo |= byteOrder16Bit;
@@ -50,7 +50,7 @@ index 819f3c8e5d2..8e3e127cafe 100644
          break;
      case QPixelFormat::FloatingPoint:
          bitmapInfo |= kCGBitmapFloatComponents;
-@@ -240,18 +250,21 @@ void qt_mac_drawCGImage(CGContextRef inContext, const CGRect *inBounds, CGImageR
+@@ -237,18 +247,21 @@ void qt_mac_drawCGImage(CGContextRef inContext, const CGRect *inBounds, CGImageR
      }();
  
      auto [redSize, greenSize, blueSize, alphaSize] = [&]() -> std::tuple<uchar,uchar,uchar,uchar> {
@@ -83,7 +83,7 @@ index 819f3c8e5d2..8e3e127cafe 100644
      }();
  
      QPixelFormat pixelFormat(QPixelFormat::RGB, redSize, greenSize, blueSize, 0, 0,
-@@ -493,31 +506,38 @@ QColor qt_mac_toQColor(const NSColor *color)
+@@ -490,31 +503,38 @@ QColor qt_mac_toQColor(const NSColor *color)
          return QColor();
  
      QColor qtColor;
@@ -141,7 +141,7 @@ index 819f3c8e5d2..8e3e127cafe 100644
      }
  
      return qtColor;
-@@ -542,13 +562,14 @@ QBrush qt_mac_toQBrush(CGColorRef color)
+@@ -539,13 +559,14 @@ QBrush qt_mac_toQBrush(CGColorRef color)
  #ifdef Q_OS_MACOS
  static bool qt_mac_isSystemColorOrInstance(const NSColor *color, NSString *colorNameComponent, NSString *className)
  {
@@ -162,7 +162,7 @@ index 819f3c8e5d2..8e3e127cafe 100644
      return false;
  }
  
-@@ -603,10 +624,12 @@ QBrush qt_mac_toQBrush(const NSColor *color, QPalette::ColorGroup colorGroup)
+@@ -600,10 +621,12 @@ QBrush qt_mac_toQBrush(const NSColor *color, QPalette::ColorGroup colorGroup)
          return qtBrush;
      }
  
