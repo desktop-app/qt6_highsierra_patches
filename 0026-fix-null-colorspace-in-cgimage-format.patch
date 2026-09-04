@@ -1,0 +1,13 @@
+diff --git a/src/gui/painting/qcoregraphics.mm b/src/gui/painting/qcoregraphics.mm
+index 0c3bc1e54c7..ddf6b9f59ac 100644
+--- a/src/gui/painting/qcoregraphics.mm
++++ b/src/gui/painting/qcoregraphics.mm
+@@ -138,6 +138,8 @@
+             return CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+         }
+     }();
++    if (!colorSpace)
++        colorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+ 
+     return QCGImageFormat{
+         bitsPerComponent, format.bitsPerPixel(),
