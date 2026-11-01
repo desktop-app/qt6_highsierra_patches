@@ -1,0 +1,169 @@
+diff --git a/src/corelib/CMakeLists.txt b/src/corelib/CMakeLists.txt
+index 7a1a3359..bd1a6e51 100644
+--- a/src/corelib/CMakeLists.txt
++++ b/src/corelib/CMakeLists.txt
+@@ -866,8 +866,13 @@ qt_internal_extend_target(Core CONDITION QT_FEATURE_thread AND UNIX
+ qt_internal_extend_target(Core CONDITION APPLE AND QT_FEATURE_thread
+     SOURCES
+         thread/qfutex_mac_p.h
++        thread/qmutex_mac.cpp
+ )
+ 
++if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 14)
++    add_compile_definitions(QT_DUMMY_MAC_FUTEX)
++endif()
++
+ qt_internal_extend_target(Core CONDITION QT_FEATURE_thread AND UNIX AND NOT APPLE AND NOT LINUX
+     SOURCES
+         thread/qmutex_unix.cpp
+diff --git a/src/corelib/thread/qfutex_mac_p.h b/src/corelib/thread/qfutex_mac_p.h
+index 1a41130f..ba8458ae 100644
+--- a/src/corelib/thread/qfutex_mac_p.h
++++ b/src/corelib/thread/qfutex_mac_p.h
+@@ -20,6 +20,14 @@
+ #include <qtsan_impl.h>
+ #include <private/qglobal_p.h>
+ 
++// os_sync_wait_on_address requires macOS 14 and is weak-imported; on older
++// deployment targets the stubs fail in dyld, so fall back to the dummy
++// futex (the callers use condition variables when futexAvailable() is false).
++#ifdef QT_DUMMY_MAC_FUTEX
++QT_BEGIN_NAMESPACE
++namespace QtFutex = QtDummyFutex;
++QT_END_NAMESPACE
++#else
+ #include <os/os_sync_wait_on_address.h>
+ 
+ #define QT_ALWAYS_USE_FUTEX
+@@ -73,4 +81,6 @@ namespace QtFutex = QtDarwinFutex;
+ 
+ QT_END_NAMESPACE
+ 
++#endif // QT_DUMMY_MAC_FUTEX
++
+ #endif // QFUTEX_MAC_P_H
+diff --git a/src/corelib/thread/qmutex.cpp b/src/corelib/thread/qmutex.cpp
+index 5f920224..719849fa 100644
+--- a/src/corelib/thread/qmutex.cpp
++++ b/src/corelib/thread/qmutex.cpp
+@@ -430,10 +430,6 @@ void QRecursiveMutex::unlock() noexcept
+ 
+     \ingroup thread
+ 
+-    QMutexLocker is a template class where the template parameter \a Mutex
+-    specifies the mutex type (such as QMutex or QRecursiveMutex) to be locked
+-    and unlocked.
+-
+     Locking and unlocking a QMutex or QRecursiveMutex in complex functions and
+     statements or in exception handling code is error-prone and
+     difficult to debug. QMutexLocker can be used in such situations
+@@ -950,6 +946,8 @@ QT_END_NAMESPACE
+ 
+ #if defined(QT_ALWAYS_USE_FUTEX)
+ // nothing
++#elif defined(Q_OS_DARWIN)
++#  include "qmutex_mac.cpp"
+ #else
+ #  include "qmutex_unix.cpp"
+ #endif
+diff --git a/src/corelib/thread/qmutex.h b/src/corelib/thread/qmutex.h
+index f76cc48e..66cea0ab 100644
+--- a/src/corelib/thread/qmutex.h
++++ b/src/corelib/thread/qmutex.h
+@@ -25,7 +25,7 @@ class QT6_ONLY(Q_CORE_EXPORT) QBasicMutex
+     Q_DISABLE_COPY_MOVE(QBasicMutex)
+ protected:
+     static constexpr bool FutexAlwaysAvailable =
+-#if defined(Q_OS_FREEBSD) || defined(Q_OS_LINUX) || defined(Q_OS_WIN) || defined(Q_OS_APPLE) // these platforms use futex
++#if defined(Q_OS_FREEBSD) || defined(Q_OS_LINUX) || defined(Q_OS_WIN) // these platforms use futex
+             true
+ #else
+             false
+diff --git a/src/corelib/thread/qmutex_mac.cpp b/src/corelib/thread/qmutex_mac.cpp
+new file mode 100644
+index 00000000..fd2c6745
+--- /dev/null
++++ b/src/corelib/thread/qmutex_mac.cpp
+@@ -0,0 +1,56 @@
++// Copyright (C) 2016 The Qt Company Ltd.
++// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
++// Qt-Security score:significant reason:default
++
++#include "qplatformdefs.h"
++#include "qmutex.h"
++#include "qmutex_p.h"
++
++#include "private/qcore_unix_p.h"
++
++#include <mach/mach.h>
++#include <mach/task.h>
++
++#include <errno.h>
++
++QT_BEGIN_NAMESPACE
++
++QMutexPrivate::QMutexPrivate()
++{
++    kern_return_t r = semaphore_create(mach_task_self(), &mach_semaphore, SYNC_POLICY_FIFO, 0);
++    if (r != KERN_SUCCESS)
++        qWarning("QMutex: failed to create semaphore, error %d", r);
++}
++
++QMutexPrivate::~QMutexPrivate()
++{
++    kern_return_t r = semaphore_destroy(mach_task_self(), mach_semaphore);
++    if (r != KERN_SUCCESS)
++        qWarning("QMutex: failed to destroy semaphore, error %d", r);
++}
++
++bool QMutexPrivate::wait(QDeadlineTimer timeout)
++{
++    kern_return_t r;
++    if (timeout.isForever()) {
++        do {
++            r = semaphore_wait(mach_semaphore);
++        } while (r == KERN_ABORTED);
++        Q_ASSERT(r == KERN_SUCCESS);
++    } else {
++        timespec tv = durationToTimespec(timeout.remainingTimeAsDuration());
++        mach_timespec_t ts;
++        ts.tv_nsec = tv.tv_nsec;
++        ts.tv_sec = tv.tv_sec;
++        r = semaphore_timedwait(mach_semaphore, ts);
++    }
++    return (r == KERN_SUCCESS);
++}
++
++void QMutexPrivate::wakeUp() noexcept
++{
++    semaphore_signal(mach_semaphore);
++}
++
++
++QT_END_NAMESPACE
+diff --git a/src/corelib/thread/qmutex_p.h b/src/corelib/thread/qmutex_p.h
+index de04ba68..8a7b4d89 100644
+--- a/src/corelib/thread/qmutex_p.h
++++ b/src/corelib/thread/qmutex_p.h
+@@ -26,7 +26,9 @@
+ 
+ #include "qplatformdefs.h" // _POSIX_VERSION
+ 
+-#if defined(Q_OS_UNIX)
++#if defined(Q_OS_DARWIN)
++# include <mach/semaphore.h>
++#elif defined(Q_OS_UNIX)
+ #  include <semaphore.h>
+ #endif
+ 
+@@ -82,7 +84,9 @@ public:
+     void derefWaiters(int value) noexcept;
+ 
+     //platform specific stuff
+-#if defined(Q_OS_UNIX)
++#if defined(Q_OS_DARWIN)
++    semaphore_t mach_semaphore;
++#elif defined(Q_OS_UNIX)
+     sem_t semaphore;
+ #endif
+ };

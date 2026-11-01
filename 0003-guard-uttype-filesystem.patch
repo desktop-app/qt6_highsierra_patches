@@ -1,8 +1,8 @@
 diff --git a/src/corelib/io/qfilesystemengine_unix.cpp b/src/corelib/io/qfilesystemengine_unix.cpp
-index 74a30c63..8de7e86b 100644
+index 6a4e7973648..ead45765892 100644
 --- a/src/corelib/io/qfilesystemengine_unix.cpp
 +++ b/src/corelib/io/qfilesystemengine_unix.cpp
-@@ -148,9 +148,11 @@ static bool isPackage(const QFileSystemMetaData &data, const QFileSystemEntry &e
+@@ -147,9 +147,11 @@ static bool isPackage(const QFileSystemMetaData &data, const QFileSystemEntry &e
  
      if (suffix.length() > 0) {
          // First step: is it a bundle?

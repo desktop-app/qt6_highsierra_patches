@@ -1,14 +1,41 @@
 diff --git a/.cmake.conf b/.cmake.conf
-index 1234567..abcdefg 100644
+index b4e790d9..a28a4565 100644
 --- a/.cmake.conf
 +++ b/.cmake.conf
-@@ -51,7 +51,7 @@ set(QT_MAX_NEW_POLICY_CMAKE_VERSION_QT_APPLE "3.21")
- # Apple version constraints. Used when building Qt and documentation
- set(QT_SUPPORTED_MIN_MACOS_SDK_VERSION "14")
- set(QT_SUPPORTED_MAX_MACOS_SDK_VERSION "26")
- set(QT_SUPPORTED_MIN_MACOS_XCODE_VERSION "15")
--set(QT_SUPPORTED_MIN_MACOS_VERSION "13")
+@@ -55,7 +55,7 @@ set(QT_MAX_NEW_POLICY_CMAKE_VERSION_QT_APPLE "3.21")
+ set(QT_SUPPORTED_MIN_MACOS_SDK_VERSION "15")
+ set(QT_SUPPORTED_MAX_MACOS_SDK_VERSION "27")
+ set(QT_SUPPORTED_MIN_MACOS_XCODE_VERSION "16")
+-set(QT_SUPPORTED_MIN_MACOS_VERSION "14.4")
 +set(QT_SUPPORTED_MIN_MACOS_VERSION "10.13")
  set(QT_SUPPORTED_MAX_MACOS_VERSION_TESTED "26")
-
- set(QT_SUPPORTED_MIN_IOS_SDK_VERSION "17")
+ 
+ set(QT_SUPPORTED_MIN_IOS_SDK_VERSION "18")
+diff --git a/src/tools/syncqt/CMakeLists.txt b/src/tools/syncqt/CMakeLists.txt
+index 1158653c..72896259 100644
+--- a/src/tools/syncqt/CMakeLists.txt
++++ b/src/tools/syncqt/CMakeLists.txt
+@@ -30,6 +30,10 @@ set(compile_definitions
+     QT_VERSION_PATCH=${PROJECT_VERSION_PATCH}
+     QT_NAMESPACE="${QT_NAMESPACE}"
+ )
++# Syncqt is a host tool, its std::filesystem usage must compile for old targets.
++if(APPLE)
++    list(APPEND compile_definitions _LIBCPP_DISABLE_AVAILABILITY_ANNOTATIONS)
++endif()
+ 
+ qt_get_tool_target_name(target_name syncqt)
+ if(NOT QT_SYNC_HEADERS_AT_CONFIGURE_TIME)
+@@ -64,9 +68,9 @@ else()
+         CMAKE_FLAGS
+             -DCMAKE_CXX_STANDARD_REQUIRED:BOOL=TRUE
+             -DCMAKE_CXX_STANDARD:STRING=17
+-            # The nested CMake build does not read .cmake.conf, so pass on the
+-            # deployment target that the rest of Qt uses.
+-            "-DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=${QT_SUPPORTED_MIN_MACOS_VERSION}"
++            # Syncqt is a host tool and must not inherit the lowered target,
++            # its std::filesystem usage is unavailable before macOS 10.15.
++            "-DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=13.0"
+             "${osx_architectures}"
+             "${osx_sysroot}"
+         SOURCES

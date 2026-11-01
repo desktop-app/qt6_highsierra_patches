@@ -1,0 +1,32 @@
+diff --git a/src/corelib/kernel/qcore_mac.mm b/src/corelib/kernel/qcore_mac.mm
+index 454eee15..574cbc46 100644
+--- a/src/corelib/kernel/qcore_mac.mm
++++ b/src/corelib/kernel/qcore_mac.mm
+@@ -537,13 +537,20 @@ bool qt_apple_isApplicationExtension()
+ */
+ std::optional<UTType *> qt_apple_bundleType(const QString &path)
+ {
+-    NSURL *url = [NSURL fileURLWithPath:path.toNSString() isDirectory:YES];
+-    UTType *type = nil;
+-    if (![url getResourceValue:&type forKey:NSURLContentTypeKey error:nil] || !type)
+-        return std::nullopt;
+-    if (![type conformsToType:UTTypeBundle])
+-        return std::nullopt;
+-    return type;
++    // NSURLContentTypeKey and the UTType machinery require macOS 11; the
++    // weak-linked key constant is null on older systems and crashes on use.
++    if (@available(macOS 11.0, *)) {
++        NSURL *url = [NSURL fileURLWithPath:path.toNSString() isDirectory:YES];
++        UTType *type = nil;
++        if (![url getResourceValue:&type forKey:NSURLContentTypeKey error:nil]
++            || !type) {
++            return std::nullopt;
++        }
++        if (![type conformsToType:UTTypeBundle])
++            return std::nullopt;
++        return type;
++    }
++    return std::nullopt;
+ }
+ 
+ #if !defined(QT_BOOTSTRAPPED) && !defined(Q_OS_WATCHOS)

@@ -4,7 +4,7 @@ index d13b23761ec..107ca45d861 100644
 +++ b/src/gui/text/coretext/qcoretextfontdatabase.mm
 @@ -972,13 +972,15 @@ static CTFontDescriptorRef fontDescriptorFromTheme(QPlatformTheme::Font f)
              };
-
+ 
              // Try populating the font variants based on its UI design trait, if available
 -            auto fontTraits = QCFType<CFDictionaryRef>(CTFontDescriptorCopyAttribute(fontDescriptor, kCTFontTraitsAttribute));
 -            static const NSString *kUIFontDesignTrait = @"NSCTFontUIFontDesignTrait";
@@ -23,5 +23,5 @@ index d13b23761ec..107ca45d861 100644
 +                    addFontVariants(designTraitDescriptor);
 +                }
              }
-
+ 
              if (themeFontVariants.isEmpty()) {

@@ -1,5 +1,5 @@
 diff --git a/src/plugins/platforms/cocoa/qcocoafiledialoghelper.mm b/src/plugins/platforms/cocoa/qcocoafiledialoghelper.mm
-index a79682e4e14..edba7f7f2d2 100644
+index a79682e4e14..3aacd1ad20f 100644
 --- a/src/plugins/platforms/cocoa/qcocoafiledialoghelper.mm
 +++ b/src/plugins/platforms/cocoa/qcocoafiledialoghelper.mm
 @@ -278,7 +278,10 @@ - (BOOL)panel:(id)sender validateURL:(NSURL *)url error:(NSError * _Nullable *)o

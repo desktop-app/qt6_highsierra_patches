@@ -1,0 +1,31 @@
+diff --git a/src/plugins/platforms/cocoa/qcocoacursor.mm b/src/plugins/platforms/cocoa/qcocoacursor.mm
+index b044e17df82..e32f3a8275b 100644
+--- a/src/plugins/platforms/cocoa/qcocoacursor.mm
++++ b/src/plugins/platforms/cocoa/qcocoacursor.mm
+@@ -171,20 +171,12 @@ + (id)_windowResizeEastWestCursor;
+             break;
+         }
+ #endif // macOS 15 SDK
+-#if !defined(QT_APPLE_NO_PRIVATE_APIS)
+-        auto selector = [newShape]{
+-            switch (newShape) {
+-            case Qt::SizeVerCursor: return @selector(_windowResizeNorthSouthCursor);
+-            case Qt::SizeHorCursor: return @selector(_windowResizeEastWestCursor);
+-            case Qt::SizeBDiagCursor: return @selector(_windowResizeNorthEastSouthWestCursor);
+-            case Qt::SizeFDiagCursor: return @selector(_windowResizeNorthWestSouthEastCursor);
+-            default: Q_UNREACHABLE();
+-            }
+-        }();
+-
+-        if ([NSCursor respondsToSelector:selector])
+-            cocoaCursor = [NSCursor performSelector:selector];
+-#endif // QT_APPLE_NO_PRIVATE_APIS
++        // Patch: avoid the private _windowResize* cursors on macOS < 15. Setting
++        // them triggers a use-after-free in the WindowServer cursor image
++        // registration (SLSRegisterCursorWithImages -> CGContextDrawImageWithOptions
++        // -> CGColorSpaceGetModel, EXC_BAD_ACCESS) on older macOS (seen on Big Sur
++        // 11.7). Leaving cocoaCursor nil falls through to Qt's own cached bitmap
++        // resize cursors below, which render safely.
+         break;
+     }
+     default:

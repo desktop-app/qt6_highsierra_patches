@@ -1,5 +1,5 @@
 diff --git a/src/plugins/platforms/cocoa/qnsview_dragging.mm b/src/plugins/platforms/cocoa/qnsview_dragging.mm
-index cac5534f31e..9ba8d74df06 100644
+index cac5534f31e..7ffd0fcbced 100644
 --- a/src/plugins/platforms/cocoa/qnsview_dragging.mm
 +++ b/src/plugins/platforms/cocoa/qnsview_dragging.mm
 @@ -19,7 +19,7 @@ -(void)registerDragTypes
@@ -10,4 +10,4 @@ index cac5534f31e..9ba8d74df06 100644
 +                   NSPasteboardTypeURL, NSPasteboardTypePDF, @"public.vcard",
                     (NSString *)kPasteboardTypeFileURLPromise,
                     NSPasteboardTypeMultipleTextSelection, mimeTypeGeneric]];
-
+ 

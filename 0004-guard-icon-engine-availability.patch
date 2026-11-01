@@ -1,5 +1,5 @@
 diff --git a/src/gui/platform/darwin/qappleiconengine.mm b/src/gui/platform/darwin/qappleiconengine.mm
-index 925135e9..0d8f0a5c 100644
+index ee73599a347..cbec2e5ed4c 100644
 --- a/src/gui/platform/darwin/qappleiconengine.mm
 +++ b/src/gui/platform/darwin/qappleiconengine.mm
 @@ -24,6 +24,15 @@

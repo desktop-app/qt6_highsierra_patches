@@ -1,5 +1,5 @@
 diff --git a/src/plugins/platforms/cocoa/qnsview_complextext.mm b/src/plugins/platforms/cocoa/qnsview_complextext.mm
-index 7251f4ad..fa201a03 100644
+index 7251f4ad114..fa201a03b95 100644
 --- a/src/plugins/platforms/cocoa/qnsview_complextext.mm
 +++ b/src/plugins/platforms/cocoa/qnsview_complextext.mm
 @@ -785,17 +785,20 @@ - (QString)utiForPasteboardType:(NSPasteboardType)pasteboardType

@@ -1,0 +1,17 @@
+diff --git a/src/corelib/thread/qatomicwait_p.h b/src/corelib/thread/qatomicwait_p.h
+index 024a5d5d..8c92b866 100644
+--- a/src/corelib/thread/qatomicwait_p.h
++++ b/src/corelib/thread/qatomicwait_p.h
+@@ -67,7 +67,11 @@ atomic_notify_all(std::atomic<T> *atomic)
+ } // namespace QtFallbackAtomicWait
+ 
+ namespace q20 {
+-#ifdef __cpp_lib_atomic_wait
++// libc++'s atomic wait/notify weak-import os_sync_wait_on_address
++// (macOS 14); on systems without __availability_version_check (macOS < 12)
++// availability guards cannot be evaluated and the weak symbol gets called,
++// failing in dyld on old systems.
++#if defined(__cpp_lib_atomic_wait) && !defined(Q_OS_MACOS)
+ using std::atomic_wait;
+ using std::atomic_wait_explicit;
+ using std::atomic_notify_all;

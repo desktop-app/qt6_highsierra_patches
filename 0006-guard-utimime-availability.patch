@@ -1,5 +1,5 @@
 diff --git a/src/gui/platform/darwin/qutimimeconverter.mm b/src/gui/platform/darwin/qutimimeconverter.mm
-index 294a617f..b0ebc4b6 100644
+index 294a617f3b0..b0ebc4b6219 100644
 --- a/src/gui/platform/darwin/qutimimeconverter.mm
 +++ b/src/gui/platform/darwin/qutimimeconverter.mm
 @@ -785,7 +785,7 @@ QVariant convertToMime(const QString &mime, const QList<QByteArray> &data,
