@@ -1,0 +1,80 @@
+diff --git a/src/corelib/global/qlibraryinfo.cpp b/src/corelib/global/qlibraryinfo.cpp
+index 5945d5ee..1cfe55f2 100644
+--- a/src/corelib/global/qlibraryinfo.cpp
++++ b/src/corelib/global/qlibraryinfo.cpp
+@@ -405,6 +405,14 @@ QString QLibraryPrefixes::qtConfPrefix()
+     Apple platforms, or the application directory once a QCoreApplication
+     exists. Returns an empty string when no stable source is available yet.
+ */
++#if defined(Q_OS_MACOS)
++static inline bool legacyPathIsBundle(const QString &bundlePath)
++{
++    return QFileInfo::exists(bundlePath + "/Contents/Info.plist"_L1)
++        || QFileInfo::exists(bundlePath + "/Contents/PkgInfo"_L1);
++}
++#endif
++
+ QString QLibraryPrefixes::resolveAppDir()
+ {
+ #if defined(Q_OS_APPLE)
+@@ -417,7 +425,12 @@ QString QLibraryPrefixes::resolveAppDir()
+     if (CFBundleRef bundleRef = CFBundleGetMainBundle()) {
+         if (QCFType<CFURLRef> urlRef = CFBundleCopyBundleURL(bundleRef)) {
+             const QString bundlePath = QCFString(CFURLCopyFileSystemPath(urlRef, kCFURLPOSIXPathStyle));
+-            if (qt_apple_bundleType(bundlePath)) {
++#if defined(Q_OS_MACOS)
++            const bool isBundle = bool(qt_apple_bundleType(bundlePath)) || legacyPathIsBundle(bundlePath);
++#else
++            const bool isBundle = bool(qt_apple_bundleType(bundlePath));
++#endif
++            if (isBundle) {
+ #if defined(Q_OS_MACOS)
+                 // On macOS the prefix is rooted at the bundle's Contents directory.
+                 return QFileInfo(bundlePath + "/Contents"_L1).canonicalFilePath();
+@@ -853,7 +866,13 @@ static bool prefixIsBundle(const QString &prefix)
+     if (prefixInfo.fileName() == "Contents"_L1)
+         bundlePath = prefixInfo.path();
+ #endif
+-    return bool(qt_apple_bundleType(bundlePath));
++    if (bool(qt_apple_bundleType(bundlePath)))
++        return true;
++#if defined(Q_OS_MACOS)
++    return legacyPathIsBundle(bundlePath);
++#else
++    return false;
++#endif
+ }
+ #endif
+ 
+diff --git a/src/corelib/kernel/qcore_mac.mm b/src/corelib/kernel/qcore_mac.mm
+index 454eee15..574cbc46 100644
+--- a/src/corelib/kernel/qcore_mac.mm
++++ b/src/corelib/kernel/qcore_mac.mm
+@@ -537,13 +537,20 @@ bool qt_apple_isApplicationExtension()
+ */
+ std::optional<UTType *> qt_apple_bundleType(const QString &path)
+ {
+-    NSURL *url = [NSURL fileURLWithPath:path.toNSString() isDirectory:YES];
+-    UTType *type = nil;
+-    if (![url getResourceValue:&type forKey:NSURLContentTypeKey error:nil] || !type)
+-        return std::nullopt;
+-    if (![type conformsToType:UTTypeBundle])
+-        return std::nullopt;
+-    return type;
++    // NSURLContentTypeKey and the UTType machinery require macOS 11; the
++    // weak-linked key constant is null on older systems and crashes on use.
++    if (@available(macOS 11.0, *)) {
++        NSURL *url = [NSURL fileURLWithPath:path.toNSString() isDirectory:YES];
++        UTType *type = nil;
++        if (![url getResourceValue:&type forKey:NSURLContentTypeKey error:nil]
++            || !type) {
++            return std::nullopt;
++        }
++        if (![type conformsToType:UTTypeBundle])
++            return std::nullopt;
++        return type;
++    }
++    return std::nullopt;
+ }
+ 
+ #if !defined(QT_BOOTSTRAPPED) && !defined(Q_OS_WATCHOS)

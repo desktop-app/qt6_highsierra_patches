@@ -1,8 +1,8 @@
 diff --git a/src/gui/rhi/qrhimetal.mm b/src/gui/rhi/qrhimetal.mm
-index c57a70e73c6..4b15edbfd71 100644
+index f9ba46f0..7c0a41ec 100644
 --- a/src/gui/rhi/qrhimetal.mm
 +++ b/src/gui/rhi/qrhimetal.mm
-@@ -542,18 +542,21 @@ inline Int aligned(Int v, Int byteAlign)
+@@ -566,18 +566,21 @@ bool QRhiMetalData::setupBinaryArchive(NSURL *sourceFileUrl)
      return false;
  #endif
  
@@ -35,7 +35,7 @@ index c57a70e73c6..4b15edbfd71 100644
  }
  
  bool QRhiMetal::create(QRhi::Flags flags)
-@@ -579,19 +582,21 @@ inline Int aligned(Int v, Int byteAlign)
+@@ -603,19 +606,21 @@ bool QRhiMetal::create(QRhi::Flags flags)
      // apparently change when the system is rebooted.
  
  #ifdef Q_OS_MACOS
@@ -70,7 +70,7 @@ index c57a70e73c6..4b15edbfd71 100644
      }
  #else
      driverInfoStruct.deviceType = QRhiDriverInfo::IntegratedDevice;
-@@ -606,18 +611,21 @@ inline Int aligned(Int v, Int byteAlign)
+@@ -630,18 +635,21 @@ bool QRhiMetal::create(QRhi::Flags flags)
      else
          d->cmdQueue = [d->dev newCommandQueue];
  
@@ -100,9 +100,18 @@ index c57a70e73c6..4b15edbfd71 100644
      caps.maxThreadGroupSize = 1024;
      caps.multiView = true;
  #elif defined(Q_OS_TVOS)
-@@ -651,12 +659,14 @@ inline Int aligned(Int v, Int byteAlign)
+@@ -683,16 +691,21 @@ bool QRhiMetal::create(QRhi::Flags flags)
              caps.supportedSampleCounts.append(sampleCount);
      }
+ 
+-    caps.indirectCommandBuffers = ([d->dev supportsFamily:MTLGPUFamilyApple5]
+-        || [d->dev supportsFamily:MTLGPUFamilyMac2])
+-        && [d->dev supportsFamily:MTLGPUFamilyMetal3];
++    if (@available(macOS 10.15, *)) {
++        caps.indirectCommandBuffers = ([d->dev supportsFamily:MTLGPUFamilyApple5]
++            || [d->dev supportsFamily:MTLGPUFamilyMac2])
++            && [d->dev supportsFamily:MTLGPUFamilyMetal3];
++    }
  
 -    caps.shadingRateMap = [d->dev supportsRasterizationRateMapWithLayerCount: 1];
 -    if (caps.shadingRateMap && caps.multiView)
@@ -113,14 +122,14 @@ index c57a70e73c6..4b15edbfd71 100644
 +            caps.shadingRateMap = [d->dev supportsRasterizationRateMapWithLayerCount: 2];
 +    }
  
--    // QTBUG-144444: setDepthClipMode is not available on the Simulator
+     // QTBUG-144444: setDepthClipMode is not available on the Simulator
 -    caps.depthClamp = [d->dev supportsFamily:MTLGPUFamilyApple3];
 +    if (@available(macOS 10.15, iOS 13.0, *))
 +        caps.depthClamp = [d->dev supportsFamily:MTLGPUFamilyApple3];
  
      if (rhiFlags.testFlag(QRhi::EnablePipelineCacheDataSave))
          d->setupBinaryArchive();
-@@ -981,52 +991,57 @@ inline Int aligned(Int v, Int byteAlign)
+@@ -1034,52 +1045,57 @@ QByteArray QRhiMetal::pipelineCacheData()
  {
      Q_STATIC_ASSERT(sizeof(QMetalPipelineCacheDataHeader) == 256);
      QByteArray data;
@@ -196,9 +205,7 @@ index c57a70e73c6..4b15edbfd71 100644
 -        memcpy(header.driver, driverInfoStruct.deviceName.constData(), driverStrLen);
 -    header.driver[driverStrLen] = '\0';
 +        data.resize(headerSize + dataSize);
- 
--    memcpy(data.data(), &header, headerSize);
--    memcpy(data.data() + headerSize, blob.constData(), dataSize);
++
 +        QMetalPipelineCacheDataHeader header = {};
 +        header.rhiId = pipelineCacheRhiId();
 +        header.arch = quint32(sizeof(void*));
@@ -209,14 +216,16 @@ index c57a70e73c6..4b15edbfd71 100644
 +        if (driverStrLen)
 +            memcpy(header.driver, driverInfoStruct.deviceName.constData(), driverStrLen);
 +        header.driver[driverStrLen] = '\0';
-+
+ 
+-    memcpy(data.data(), &header, headerSize);
+-    memcpy(data.data() + headerSize, blob.constData(), dataSize);
 +        memcpy(data.data(), &header, headerSize);
 +        memcpy(data.data() + headerSize, blob.constData(), dataSize);
 +    }
      return data;
  }
  
-@@ -1933,10 +1948,12 @@ static inline void rebindShaderResources(QMetalCommandBuffer *cbD, int resourceS
+@@ -1992,10 +2008,12 @@ void QRhiMetal::setViewport(QRhiCommandBuffer *cb, const QRhiViewport &viewport)
      // This is specifically needed for visionOS.
      if (cbD->currentTarget->resourceType() == QRhiResource::TextureRenderTarget) {
          QRhiTextureRenderTarget *rt = static_cast<QRhiTextureRenderTarget *>(cbD->currentTarget);
@@ -233,7 +242,7 @@ index c57a70e73c6..4b15edbfd71 100644
              }
          }
      }
-@@ -2498,7 +2515,8 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
+@@ -2875,7 +2893,8 @@ QRhi::FrameOpResult QRhiMetal::endFrame(QRhiSwapChain *swapChain, QRhi::EndFrame
  
      __block int thisFrameSlot = currentFrameSlot;
      [commandBuffer addCompletedHandler: ^(id<MTLCommandBuffer> cb) {
@@ -243,7 +252,7 @@ index c57a70e73c6..4b15edbfd71 100644
          dispatch_semaphore_signal(swapChainD->d->sem[thisFrameSlot]);
      }];
  
-@@ -2622,7 +2640,8 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
+@@ -2999,7 +3018,8 @@ QRhi::FrameOpResult QRhiMetal::endOffscreenFrame(QRhi::EndFrameFlags flags)
      // offscreen frames wait for completion, unlike swapchain ones
      [cb waitUntilCompleted];
  
@@ -253,7 +262,7 @@ index c57a70e73c6..4b15edbfd71 100644
  
      finishActiveReadbacks(true);
  
-@@ -2664,10 +2683,12 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
+@@ -3041,10 +3061,12 @@ QRhi::FrameOpResult QRhiMetal::finish()
  
      if (inFrame) {
          if (d->ofr.active) {
@@ -268,7 +277,7 @@ index c57a70e73c6..4b15edbfd71 100644
              swapChainD->cbWrapper.d->cb = d->newCommandBuffer();
          }
      }
-@@ -2704,8 +2725,10 @@ static void endTessellationComputeEncoding(QMetalCommandBuffer *cbD)
+@@ -3081,8 +3103,10 @@ MTLRenderPassDescriptor *QRhiMetalData::createDefaultRenderPass(bool hasDepthSte
          rp.stencilAttachment.clearStencil = depthStencilClearValue.stencilClearValue();
      }
  
@@ -281,7 +290,7 @@ index c57a70e73c6..4b15edbfd71 100644
  
      return rp;
  }
-@@ -3821,9 +3844,15 @@ static inline MTLPixelFormat toMetalTextureFormat(QRhiTexture::Format format, QR
+@@ -4243,9 +4267,15 @@ bool QMetalRenderBuffer::create()
      switch (m_type) {
      case DepthStencil:
  #ifdef Q_OS_MACOS
@@ -300,7 +309,7 @@ index c57a70e73c6..4b15edbfd71 100644
          } else {
              desc.storageMode = MTLStorageModePrivate;
              d->format = rhiD->d->dev.depth24Stencil8PixelFormatSupported
-@@ -4001,7 +4030,10 @@ static inline MTLPixelFormat toMetalTextureFormat(QRhiTexture::Format format, QR
+@@ -4426,7 +4456,10 @@ bool QMetalTexture::create()
      } else if (is1D) {
          desc.textureType = isArray ? MTLTextureType1DArray : MTLTextureType1D;
      } else if (isArray) {
@@ -312,7 +321,7 @@ index c57a70e73c6..4b15edbfd71 100644
      } else {
          desc.textureType = samples > 1 ? MTLTextureType2DMultisample : MTLTextureType2D;
      }
-@@ -5154,19 +5186,23 @@ static inline MTLLanguageVersion toMetalLanguageVersion(const QShaderVersion &ve
+@@ -5575,19 +5608,23 @@ void QMetalGraphicsPipelineData::setupStageInputDescriptor(MTLStageInputOutputDe
  
  void QRhiMetalData::trySeedingRenderPipelineFromBinaryArchive(MTLRenderPipelineDescriptor *rpDesc)
  {
@@ -344,7 +353,7 @@ index c57a70e73c6..4b15edbfd71 100644
          }
      }
  }
-@@ -6136,19 +6172,23 @@ static inline bool matches(const QShaderDescription::InOutVariable &a, const QSh
+@@ -6560,19 +6597,23 @@ void QMetalComputePipeline::destroy()
  
  void QRhiMetalData::trySeedingComputePipelineFromBinaryArchive(MTLComputePipelineDescriptor *cpDesc)
  {
@@ -376,7 +385,7 @@ index c57a70e73c6..4b15edbfd71 100644
          }
      }
  }
-@@ -6661,7 +6701,10 @@ static inline bool matches(const QShaderDescription::InOutVariable &a, const QSh
+@@ -7078,7 +7119,10 @@ QRhiSwapChainHdrInfo QMetalSwapChain::hdrInfo()
          NSView *view = reinterpret_cast<NSView *>(m_window->winId());
          NSScreen *screen = view.window.screen;
          info.limits.colorComponentValue.maxColorComponentValue = screen.maximumExtendedDynamicRangeColorComponentValue;
@@ -386,5 +395,5 @@ index c57a70e73c6..4b15edbfd71 100644
 +        else
 +            info.limits.colorComponentValue.maxPotentialColorComponentValue = 1.0;
  #elif defined(Q_OS_IOS)
-         if (@available(iOS 16.0, *)) {
-             UIView *view = reinterpret_cast<UIView *>(m_window->winId());
+         UIView *view = reinterpret_cast<UIView *>(m_window->winId());
+         UIScreen *screen = view.window.windowScene.screen;

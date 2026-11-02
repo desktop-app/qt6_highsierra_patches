@@ -1,9 +1,9 @@
 diff --git a/src/gui/platform/macos/qmacstyle_p.h b/src/gui/platform/macos/qmacstyle_p.h
-index bbfbc1a06e3..d43a347f9fe 100644
+index 8f987f8d..95d03aad 100644
 --- a/src/gui/platform/macos/qmacstyle_p.h
 +++ b/src/gui/platform/macos/qmacstyle_p.h
-@@ -51,28 +51,43 @@ public:
-     void drawPrimitive(typename Style::PrimitiveElement pe, const QStyleOption *opt, QPainter *p
+@@ -54,28 +54,43 @@ public:
+     void drawPrimitive(typename Style::PrimitiveElement pe, const StyleOption *opt, QPainter *p
                         OPTIONAL_WIDGET_ARGUMENT) const override
      {
 -        [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
@@ -19,7 +19,7 @@ index bbfbc1a06e3..d43a347f9fe 100644
 +        }
      }
  
-     void drawControl(typename Style::ControlElement element, const QStyleOption *opt, QPainter *p
+     void drawControl(typename Style::ControlElement element, const StyleOption *opt, QPainter *p
                       OPTIONAL_WIDGET_ARGUMENT) const override
      {
 -        [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{
@@ -35,7 +35,7 @@ index bbfbc1a06e3..d43a347f9fe 100644
 +        }
      }
  
-     void drawComplexControl(typename Style::ComplexControl cc, const QStyleOptionComplex *opt, QPainter *p
+     void drawComplexControl(typename Style::ComplexControl cc, const StyleOptionComplex *opt, QPainter *p
                              OPTIONAL_WIDGET_ARGUMENT) const override
      {
 -        [NSApp.effectiveAppearance performAsCurrentDrawingAppearance:^{

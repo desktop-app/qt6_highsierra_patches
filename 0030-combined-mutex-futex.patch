@@ -1,0 +1,171 @@
+diff --git a/src/corelib/CMakeLists.txt b/src/corelib/CMakeLists.txt
+index 7a1a3359..16df9bf7 100644
+--- a/src/corelib/CMakeLists.txt
++++ b/src/corelib/CMakeLists.txt
+@@ -866,8 +866,8 @@ qt_internal_extend_target(Core CONDITION QT_FEATURE_thread AND UNIX
+ qt_internal_extend_target(Core CONDITION APPLE AND QT_FEATURE_thread
+     SOURCES
+         thread/qfutex_mac_p.h
++        thread/qmutex_mac.cpp
+ )
+-
+ qt_internal_extend_target(Core CONDITION QT_FEATURE_thread AND UNIX AND NOT APPLE AND NOT LINUX
+     SOURCES
+         thread/qmutex_unix.cpp
+@@ -1632,6 +1632,7 @@ qt_internal_extend_target(Core CONDITION QT_FEATURE_ctf
+ 
+ # This file is included by qmutex.cpp
+ set_source_files_properties(
++    thread/qmutex_mac.cpp
+     thread/qmutex_unix.cpp
+     PROPERTIES HEADER_FILE_ONLY ON)
+ 
+diff --git a/src/corelib/thread/qfutex_mac_p.h b/src/corelib/thread/qfutex_mac_p.h
+index 1a41130f..fa6ac355 100644
+--- a/src/corelib/thread/qfutex_mac_p.h
++++ b/src/corelib/thread/qfutex_mac_p.h
+@@ -21,14 +21,20 @@
+ #include <private/qglobal_p.h>
+ 
+ #include <os/os_sync_wait_on_address.h>
+-
+-#define QT_ALWAYS_USE_FUTEX
+-
+ QT_BEGIN_NAMESPACE
+ 
+ namespace QtDarwinFutex {
+ 
+-constexpr bool futexAvailable() { return true; }
++inline bool futexAvailable()
++{
++#if defined(Q_OS_DARWIN)
++    if (__builtin_available(macOS 14.4, iOS 17.4, tvos 17.4, watchos 10.4, *))
++        return true;
++    return false;
++#else
++    return false;
++#endif
++}
+ 
+ template <typename Atomic>
+ inline void futexWait(Atomic &futex, typename Atomic::Type expectedValue)
+@@ -73,4 +79,5 @@ namespace QtFutex = QtDarwinFutex;
+ 
+ QT_END_NAMESPACE
+ 
++
+ #endif // QFUTEX_MAC_P_H
+diff --git a/src/corelib/thread/qmutex.cpp b/src/corelib/thread/qmutex.cpp
+index 5f920224..85532884 100644
+--- a/src/corelib/thread/qmutex.cpp
++++ b/src/corelib/thread/qmutex.cpp
+@@ -950,6 +950,8 @@ QT_END_NAMESPACE
+ 
+ #if defined(QT_ALWAYS_USE_FUTEX)
+ // nothing
++#elif defined(Q_OS_DARWIN)
++#  include "qmutex_mac.cpp"
+ #else
+ #  include "qmutex_unix.cpp"
+ #endif
+diff --git a/src/corelib/thread/qmutex.h b/src/corelib/thread/qmutex.h
+index f76cc48e..66cea0ab 100644
+--- a/src/corelib/thread/qmutex.h
++++ b/src/corelib/thread/qmutex.h
+@@ -25,7 +25,7 @@ class QT6_ONLY(Q_CORE_EXPORT) QBasicMutex
+     Q_DISABLE_COPY_MOVE(QBasicMutex)
+ protected:
+     static constexpr bool FutexAlwaysAvailable =
+-#if defined(Q_OS_FREEBSD) || defined(Q_OS_LINUX) || defined(Q_OS_WIN) || defined(Q_OS_APPLE) // these platforms use futex
++#if defined(Q_OS_FREEBSD) || defined(Q_OS_LINUX) || defined(Q_OS_WIN) // these platforms use futex
+             true
+ #else
+             false
+diff --git a/src/corelib/thread/qmutex_mac.cpp b/src/corelib/thread/qmutex_mac.cpp
+new file mode 100644
+index 00000000..fd2c6745
+--- /dev/null
++++ b/src/corelib/thread/qmutex_mac.cpp
+@@ -0,0 +1,56 @@
++// Copyright (C) 2016 The Qt Company Ltd.
++// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
++// Qt-Security score:significant reason:default
++
++#include "qplatformdefs.h"
++#include "qmutex.h"
++#include "qmutex_p.h"
++
++#include "private/qcore_unix_p.h"
++
++#include <mach/mach.h>
++#include <mach/task.h>
++
++#include <errno.h>
++
++QT_BEGIN_NAMESPACE
++
++QMutexPrivate::QMutexPrivate()
++{
++    kern_return_t r = semaphore_create(mach_task_self(), &mach_semaphore, SYNC_POLICY_FIFO, 0);
++    if (r != KERN_SUCCESS)
++        qWarning("QMutex: failed to create semaphore, error %d", r);
++}
++
++QMutexPrivate::~QMutexPrivate()
++{
++    kern_return_t r = semaphore_destroy(mach_task_self(), mach_semaphore);
++    if (r != KERN_SUCCESS)
++        qWarning("QMutex: failed to destroy semaphore, error %d", r);
++}
++
++bool QMutexPrivate::wait(QDeadlineTimer timeout)
++{
++    kern_return_t r;
++    if (timeout.isForever()) {
++        do {
++            r = semaphore_wait(mach_semaphore);
++        } while (r == KERN_ABORTED);
++        Q_ASSERT(r == KERN_SUCCESS);
++    } else {
++        timespec tv = durationToTimespec(timeout.remainingTimeAsDuration());
++        mach_timespec_t ts;
++        ts.tv_nsec = tv.tv_nsec;
++        ts.tv_sec = tv.tv_sec;
++        r = semaphore_timedwait(mach_semaphore, ts);
++    }
++    return (r == KERN_SUCCESS);
++}
++
++void QMutexPrivate::wakeUp() noexcept
++{
++    semaphore_signal(mach_semaphore);
++}
++
++
++QT_END_NAMESPACE
+diff --git a/src/corelib/thread/qmutex_p.h b/src/corelib/thread/qmutex_p.h
+index de04ba68..8a7b4d89 100644
+--- a/src/corelib/thread/qmutex_p.h
++++ b/src/corelib/thread/qmutex_p.h
+@@ -26,7 +26,9 @@
+ 
+ #include "qplatformdefs.h" // _POSIX_VERSION
+ 
+-#if defined(Q_OS_UNIX)
++#if defined(Q_OS_DARWIN)
++# include <mach/semaphore.h>
++#elif defined(Q_OS_UNIX)
+ #  include <semaphore.h>
+ #endif
+ 
+@@ -82,7 +84,9 @@ public:
+     void derefWaiters(int value) noexcept;
+ 
+     //platform specific stuff
+-#if defined(Q_OS_UNIX)
++#if defined(Q_OS_DARWIN)
++    semaphore_t mach_semaphore;
++#elif defined(Q_OS_UNIX)
+     sem_t semaphore;
+ #endif
+ };

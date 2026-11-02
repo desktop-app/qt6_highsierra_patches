@@ -1,8 +1,8 @@
 diff --git a/src/plugins/platforms/cocoa/qcocoawindow.mm b/src/plugins/platforms/cocoa/qcocoawindow.mm
-index 63f8b08d6d4..59f17370327 100644
+index 935645c4..d085ce0e 100644
 --- a/src/plugins/platforms/cocoa/qcocoawindow.mm
 +++ b/src/plugins/platforms/cocoa/qcocoawindow.mm
-@@ -133,14 +133,14 @@ static void qRegisterNotificationCallbacks()
+@@ -197,14 +197,14 @@ void QCocoaWindow::initialize()
  
          setMask(QHighDpi::toNativeLocalRegion(window()->mask(), window()));
  
@@ -24,8 +24,8 @@ index 63f8b08d6d4..59f17370327 100644
 +        }
  
      } else {
-         // Pick up essential foreign window state
-@@ -317,6 +317,10 @@ a normal (not maximized or full screen) top-level window.
+         // Reparent to superview if needed
+@@ -401,6 +401,10 @@ QMargins QCocoaWindow::safeAreaMargins() const
      // the current view (by setting additionalSafeAreaInsets). If the window
      // uses NSWindowStyleMaskFullSizeContentView this also includes the area
      // of the view covered by the title bar.
@@ -36,7 +36,7 @@ index 63f8b08d6d4..59f17370327 100644
      QMarginsF viewSafeAreaMargins = {
          m_view.safeAreaInsets.left,
          m_view.safeAreaInsets.top,
-@@ -324,33 +328,29 @@ a normal (not maximized or full screen) top-level window.
+@@ -408,33 +412,29 @@ QMargins QCocoaWindow::safeAreaMargins() const
          m_view.safeAreaInsets.bottom
      };
  
