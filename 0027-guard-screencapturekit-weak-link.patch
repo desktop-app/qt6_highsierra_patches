@@ -75,7 +75,7 @@ index 399f627d..49a5f987 100644
 -                                capture(content);
 -                            else
 -                                dispatch_semaphore_signal(sem);
-+    if (@available(macOS 12.3, *)) {
++    if (@available(macOS 14.4, *)) {
 +        // ScreenCaptureKit brings down WindowServer on macOS 14 x86_64 VMs in CI
 +        if (!QGuiApplicationPrivate::platformIntegration()->hasCapability(
 +            QPlatformIntegration::ScreenWindowGrabbing)) {
